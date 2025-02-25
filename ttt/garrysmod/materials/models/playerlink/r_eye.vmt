@@ -1,0 +1,11 @@
+"VertexLitGeneric"
+{
+	"$baseTexture" "models/playerlink/r_eye"
+               "$halflambert"1 
+	"$nocull"1
+	"$alphatest"1
+   
+	
+
+	
+}

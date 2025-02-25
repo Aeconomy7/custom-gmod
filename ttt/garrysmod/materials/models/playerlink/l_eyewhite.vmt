@@ -1,0 +1,10 @@
+"vertexlitgeneric"
+{
+	"$baseTexture" "models/playerlink/l_eyewhite"
+              "$iris" "models/playerlink/l_eyeball"
+	 "$halflambert"1 
+	"$nocull"1
+     
+	
+
+}

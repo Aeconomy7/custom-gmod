@@ -1,0 +1,21 @@
+"VertexLitGeneric"
+{
+	"$baseTexture" "models/playerlink/shield"
+               "$halflambert"1 
+	"$nocull"1
+	
+   "$bumpmap" "models/playerlink/shield_normal"       
+	
+
+	"$phong" "1"
+               "$phongexponent" "33" 
+                "$phongboost" "15"
+                               "$phongfresnelranges"   "[0.001 0.4 4]"
+	 "$phongexponentmask" "models/playerlink/shield_exponent"
+	
+               // Rim lighting parameters 
+"$rimlight" "1" // To enable rim lighting (requires phong) 
+"$rimlightexponent" "1" // Exponent for phong component of rim lighting 
+"$rimlightboost" "1" // Boost for ambient cube component of rim lighting
+
+}
