@@ -4,27 +4,47 @@ if SERVER then
     resource.AddFile("models/hoff/weapons/claymore/w_claymore.mdl")
 end
 
+-- DEFINE_BASECLASS("weapon_tttbase")
+
+if CLIENT then
+    SWEP.PrintName = "Claymore"
+    SWEP.Slot = 7
+
+    SWEP.ViewModelFlip = false
+    SWEP.ViewModelFOV = 70
+
+    SWEP.EquipMenuData = {
+        type = "item_weapon",
+        name = "Claymore",
+        desc = "A claymore to plant and nurture.\n\nLeft click to plant.\nRight click to detonate.",
+    }
+
+    SWEP.Icon = "vgui/ttt/icon_claymore"
+    SWEP.IconLetter = "C"
+end
+
 SWEP.Base = "weapon_tttbase"
 SWEP.Author = "Hoff"
 SWEP.PrintName = "Claymore"
 SWEP.Instructions = "Plant an explosive claymore trap."
 SWEP.Category = "TTT2 (Traitor)"
-SWEP.Spawnable = false
-SWEP.AdminSpawnable = false
+SWEP.Spawnable = true
+SWEP.AdminSpawnable = true
 SWEP.ViewModel = "models/hoff/weapons/claymore/c_claymore.mdl"
 SWEP.WorldModel = "models/hoff/weapons/claymore/w_claymore.mdl"
 SWEP.ViewModelFOV = 70
 
-SWEP.Primary.ClipSize = -1
+SWEP.Primary.ClipSize = 1
 SWEP.Primary.DefaultClip = 1
+SWEP.Primary.ClipMax = 1
 SWEP.Primary.Automatic = false
 SWEP.Primary.Ammo = "slam"
 SWEP.Primary.Delay = 0.5
 
-SWEP.Secondary.ClipSize = -1
-SWEP.Secondary.DefaultClip = -1
-SWEP.Secondary.Automatic = false
-SWEP.Secondary.Ammo = "none"
+-- SWEP.Secondary.ClipSize = 1
+-- SWEP.Secondary.DefaultClip = 1
+-- SWEP.Secondary.Automatic = false
+-- SWEP.Secondary.Ammo = "none"
 
 SWEP.Weight = 5
 SWEP.AutoSwitchTo = false
@@ -33,10 +53,12 @@ SWEP.DrawAmmo = true
 SWEP.DrawCrosshair = false
 SWEP.UseHands = true
 SWEP.HoldType = "slam"
+SWEP.AutoSpawnable = false
+SWEP.AllowDrop = true
 
-SWEP.Kind = WEAPON_EQUIP1 -- Makes it a special weapon (traitor shop)
-SWEP.CanBuy = {ROLE_TRAITOR} -- Traitors can buy this
-SWEP.LimitedStock = true -- Only one can be bought per round
+SWEP.Kind = WEAPON_EQUIP1
+SWEP.CanBuy = {ROLE_TRAITOR}
+SWEP.LimitedStock = true
 SWEP.EquipMenuData = {
     type = "Weapon",
     desc = "Plant an explosive claymore that triggers when enemies get near."
@@ -57,6 +79,7 @@ SWEP.Offset = {
 		Forward = 0,
 	}
 }
+-- WEPS.Register(SWEP, "seal6-claymore")
 function SWEP:DrawWorldModel( )
 	if not IsValid( self:GetOwner() ) then
 		self:DrawModel( )
@@ -105,6 +128,11 @@ function SWEP:Holster()
 end
 
 function SWEP:PrimaryAttack()
+	timer.Simple(0.1, function()
+		if IsValid(self) and IsValid(self:GetOwner()) then
+			self:GetOwner():StripWeapon("seal6-claymore")
+		end
+	end)
 
 	if self.Next < CurTime() and self.Primed == 0 then
 		self.Next = CurTime() + self.Primary.Delay
@@ -122,9 +150,10 @@ function SWEP:DeployShield()
 		return
 	end
 
-	if GetConVar("Claymore_Infinite"):GetInt() == 0 then
-		self:GetOwner():RemoveAmmo(1,"slam")
-	end
+	-- UNCOMMENT FOR INFINITE CLAYMER ZZZ
+	-- if GetConVar("Claymore_Infinite"):GetInt() == 0 then
+	self:GetOwner():RemoveAmmo(1,"slam")
+	-- end
 
 	timer.Simple(0.4,function()
 		if self:IsValid() then
@@ -197,9 +226,11 @@ function SWEP:DeployShield()
 				self:GetOwner():AddCleanup("sents", ent) -- Add item to the sents cleanup
 				self:GetOwner():AddCleanup("my_props", ent) -- Add item to the cleanup
 			end
-			if ( self:Ammo1() <= 0 ) then
-				self:GetOwner():StripWeapon("seal6-claymore")
-			end
+			timer.Simple(0.1, function()
+				if IsValid(self:GetOwner()) and self:GetOwner():GetAmmoCount(self.Primary.Ammo) <= 0 then
+					self:GetOwner():StripWeapon("seal6-claymore")
+				end
+			end)
 		end
 	end)
 end
@@ -222,5 +253,10 @@ function SWEP:Think()
 end
 
 function SWEP:ShouldDropOnDie()
-	return false
+	return true
 end
+
+-- -- Override the Ammo1 function to always return 1
+-- function SWEP:Ammo1()
+-- 	return self:GetOwner():GetAmmoCount(self.Primary.Ammo)
+-- end

@@ -1,0 +1,12 @@
+net.Receive("ShowHitMessage", function()
+    local message = "!! YOU'VE BEEN HIT BY A SMOOTH CRIMINAL !!"
+    local duration = 5 -- Duration to display the message in seconds
+
+    hook.Add("HUDPaint", "ShowHitMessageHUD", function()
+        draw.SimpleText(message, "Trebuchet24", ScrW() / 2, ScrH() / 2, Color(255, 0, 0, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end)
+
+    timer.Simple(duration, function()
+        hook.Remove("HUDPaint", "ShowHitMessageHUD")
+    end)
+end)

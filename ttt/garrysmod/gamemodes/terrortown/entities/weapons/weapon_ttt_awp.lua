@@ -15,10 +15,10 @@ SWEP.Primary.Delay = 2
 SWEP.Primary.Recoil = 10
 SWEP.Primary.Cone = 0.001
 SWEP.Primary.Damage = 90
-SWEP.Primary.Automatic = false
-SWEP.Primary.ClipSize = 2
+SWEP.Primary.Automatic = true -- if things break change this
+SWEP.Primary.ClipSize = 3
 SWEP.Primary.ClipMax = 1
-SWEP.Primary.DefaultClip = 1
+SWEP.Primary.DefaultClip = 3
 SWEP.Primary.Sound = Sound("Weapon_M4A1.Silenced")
 SWEP.Secondary.Sound = Sound("Default.Zoom")
 SWEP.HeadshotMultiplier = 4
@@ -153,6 +153,6 @@ end
 if CLIENT then
     SWEP.EquipMenuData = {
         type = "Weapon",
-        desc = "Silenced AWP Sniper Rifle.\n\nOnly has one shot.\n\nVictims will not scream when killed."
+        desc = "Silenced AWP Sniper Rifle.\n\nOnly has three shot."
     }
 end

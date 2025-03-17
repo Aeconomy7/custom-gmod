@@ -1,5 +1,6 @@
 --[[
     Written by 4tla2
+    Modified by Sc00by
     Using the Unlicense
     https://unlicense.org
 ]]
