@@ -6,14 +6,10 @@
 ;sound/cheeseman.mp3 <-- Adds the file 'cheeseman.mp3' under the sound folder
 ;sound/my_music <-- Adds all files within the my_music folder, inside the sound folder
 
-data/music/end_random_music/innocent
-data/music/end_random_music/traitor
-data/music/end_random_music/ttt2_serialkiller
-data/music/end_random_music/ttt2_marker
 lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
+garrysmod/lua/autorun/client
 maps
-maps/ttt_squidgame_facility.bsp
 materials/vgui/entities/npc_zsssamusu.vmt
 materials/vgui/entities/npc_zsssamusu.vtf
 materials/models/playerlink/link3_normal.vtf
@@ -139,12 +135,3 @@ models/npc_link.vvd
 models/player_linkweapons.dx90.vtx
 models/link_viewarms.dx90.vtx
 models/npc_linkweapons.dx80.vtx
-sound/annie-are-you-ok.wav
-sound/annie-are-you-ok.mp3
-sound/mjow.wav
-sound/hookshot-shoot.wav
-sound/reverb_fart.mp3
-sound/WHAT-THE-FU-BOOM.mp3
-addons/soundbrowser/lua/autorun/soundbrowser.lua
-addons/soundbrowser/lua/autorun/server/sv_soundbrowser.lua
-addons/soundbrowser/lua/autorun/client/cl_soundbrowser.lua

@@ -9,7 +9,7 @@ if SERVER then
     --Init basic stuff
     local SystemType = package.config:sub(1,1)
     CreateConVar("ttt_end_random_music_wintype", 0, FCVAR_SERVER_CAN_EXECUTE, "Enable if you want teamspecific win music at the end of the round", 0, 1)
-    CreateConVar("ttt_end_random_music_silentscan", 0, FCVAR_SERVER_CAN_EXECUTE, "Enable if you don't want to the Addon to print all found files out after Roundend", 0, 1)
+    CreateConVar("ttt_end_random_music_silentscan", 1, FCVAR_SERVER_CAN_EXECUTE, "Enable if you don't want to the Addon to print all found files out after Roundend", 0, 1)
     CreateConVar("ttt_end_random_music_source", 0, FCVAR_REPLICATED, "Switches search place from data/ to sound/. Use only if you know, what you do", 0, 1)
     CreateConVar("ttt_end_random_music_timeout_not_innocent", 0, FCVAR_SERVER_CAN_EXECUTE, "Enable if you don't want that timeouts count to innocents winnings", 0, 1)
     util.AddNetworkString("ttt_end_random_music")

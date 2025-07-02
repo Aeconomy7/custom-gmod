@@ -16,7 +16,7 @@ if CLIENT then
     SWEP.EquipMenuData = {
         type = "item_weapon",
         name = "Claymore",
-        desc = "A claymore to plant and nurture.\n\nLeft click to plant.\nRight click to detonate.",
+        desc = "A claymore to plant and nurture.\n\nLeft click to plant.",
     }
 
     SWEP.Icon = "vgui/ttt/icon_claymore"
@@ -128,11 +128,11 @@ function SWEP:Holster()
 end
 
 function SWEP:PrimaryAttack()
-	timer.Simple(0.1, function()
-		if IsValid(self) and IsValid(self:GetOwner()) then
-			self:GetOwner():StripWeapon("seal6-claymore")
-		end
-	end)
+	-- timer.Simple(1.4, function()
+	-- 	if IsValid(self) and IsValid(self:GetOwner()) then
+	-- 		self:GetOwner():StripWeapon("weapon_ttt_claymore")
+	-- 	end
+	-- end)
 
 	if self.Next < CurTime() and self.Primed == 0 then
 		self.Next = CurTime() + self.Primary.Delay
@@ -215,21 +215,8 @@ function SWEP:DeployShield()
 			ent.ClayOwner = self:GetOwner()
 			ent:SetNWString("OwnerID", self:GetOwner():SteamID())
 			ent:EmitSound("hoff/mpl/seal_claymore/plant.wav")
-			if engine.ActiveGamemode() ~= "nzombies" then
-				undo.Create("Claymore")
-					undo.AddEntity(ent)
-					undo.SetPlayer(self:GetOwner())
-				undo.Finish()
-
-				self:GetOwner():AddCount("sents", ent) -- Add to the SENTs count ( ownership )
-				self:GetOwner():AddCount("my_props", ent) -- Add count to our personal count
-				self:GetOwner():AddCleanup("sents", ent) -- Add item to the sents cleanup
-				self:GetOwner():AddCleanup("my_props", ent) -- Add item to the cleanup
-			end
-			timer.Simple(0.1, function()
-				if IsValid(self:GetOwner()) and self:GetOwner():GetAmmoCount(self.Primary.Ammo) <= 0 then
-					self:GetOwner():StripWeapon("seal6-claymore")
-				end
+			timer.Simple(1.4, function()
+				if IsValid(self) and IsValid(self:GetOwner()) then self:GetOwner():StripWeapon("weapon_ttt_claymore") end
 			end)
 		end
 	end)

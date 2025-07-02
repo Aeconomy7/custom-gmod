@@ -21,7 +21,7 @@ if SERVER then
     
     SWEP.EquipMenuData = {
        type = "item_weapon",
-       desc = "1 Shot.\n\nCauses victim to dance uncontrollably, and sing Thriller, \nthen die 14 seconds later."
+       desc = "1 Shot.\n\nCauses victim to dance uncontrollably, and sing Smooth Criminal, \nthen die 14 seconds later."
     };
  
     SWEP.Icon = "vgui/ttt/icon_thrillerblue.png"
