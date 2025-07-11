@@ -8,7 +8,7 @@ if SERVER then
 
     --Init basic stuff
     local SystemType = package.config:sub(1,1)
-    CreateConVar("ttt_end_random_music_wintype", 0, FCVAR_SERVER_CAN_EXECUTE, "Enable if you want teamspecific win music at the end of the round", 0, 1)
+    CreateConVar("ttt_end_random_music_wintype", 1, FCVAR_SERVER_CAN_EXECUTE, "Enable if you want teamspecific win music at the end of the round", 0, 1)
     CreateConVar("ttt_end_random_music_silentscan", 1, FCVAR_SERVER_CAN_EXECUTE, "Enable if you don't want to the Addon to print all found files out after Roundend", 0, 1)
     CreateConVar("ttt_end_random_music_source", 0, FCVAR_REPLICATED, "Switches search place from data/ to sound/. Use only if you know, what you do", 0, 1)
     CreateConVar("ttt_end_random_music_timeout_not_innocent", 0, FCVAR_SERVER_CAN_EXECUTE, "Enable if you don't want that timeouts count to innocents winnings", 0, 1)
@@ -27,14 +27,14 @@ if SERVER then
         CreateConVar("ttt_end_random_music_branch", 1, FCVAR_REPLICATED, "Branch", 0, 1)
         branch = "ttt2"
         print("[End_Random_Music] Checking for other TTT2 Roles:")
-        if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "1392362130", 1) != nil) then --Check for Jackal
-            ttt2jackal_true = 1
-            print ("[End_Random_Music] Found Jackal")
-        end
-        if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "1371842074", 1) != nil) then --Check for Infected
-            ttt2infected_true = 1
-            print ("[End_Random_Music] Found Infected")
-        end
+        -- if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "1392362130", 1) != nil) then --Check for Jackal
+        --     ttt2jackal_true = 1
+        --     print ("[End_Random_Music] Found Jackal")
+        -- end
+        -- if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "1371842074", 1) != nil) then --Check for Infected
+        --     ttt2infected_true = 1
+        --     print ("[End_Random_Music] Found Infected")
+        -- end
         if (true) then --Check for Jester
             ttt2jester_true = 1
             print ("[End_Random_Music] Found Jester")
@@ -47,7 +47,7 @@ if SERVER then
             ttt2pirate_true = 1
             print ("[End_Random_Music] Found Pirate")
         end
-        if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "1883650244", 1) != nil) then --Check for Necromancer
+        if (true) then --Check for Necromancer
             ttt2necromancer_true = 1
             print ("[End_Random_Music] Found Necromancer")
         end
@@ -55,10 +55,10 @@ if SERVER then
             ttt2serialkiller_true = 1
             print ("[End_Random_Music] Found Serialkiller")
         end
-        if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "2487229784", 1) != nil) then --Check for Hidden
-            ttt2hidden_true = 1
-            print ("[End_Random_Music] Found Hidden")
-        end
+        -- if (string.find(table.ToString(engine.GetAddons(), "modliste", true), "2487229784", 1) != nil) then --Check for Hidden
+        --     ttt2hidden_true = 1
+        --     print ("[End_Random_Music] Found Hidden")
+        -- end
     else
         branch = "ttt"
         CreateConVar("ttt_end_random_music_branch", 0, FCVAR_REPLICATED, "Branch", 0, 1)
@@ -73,6 +73,7 @@ if SERVER then
 
     //Foldercheck
     if (GetConVar("ttt_end_random_music_source"):GetString() == "0") then
+        print ("[End_Random_Music] Folder check enabled (ConVar ttt_end_random_music_source = 0).")
         if (file.Exists("music/end_random_music/innocent" , "DATA") && file.Exists("music/end_random_music/traitor" , "DATA") && file.Exists("music/end_random_music/other" , "DATA")) then --Check for folder
             print ("[End_Random_Music] Basic folder check successful.")
             print ("[End_Random_Music] Checking for extra folders.")
@@ -92,22 +93,22 @@ if SERVER then
             end
         end
         if (branch == "ttt2") then
-            if (ttt2jackal_true == 1) then
-                if (file.Exists("music/end_random_music/ttt2_jackal", "DATA")) then
-                    print ("[End_Random_Music] Found Jackal folder.")
-                else
-                    print ("[End_Random_Music] Missing Jackal folder. Creating...")
-                    file.CreateDir("music/end_random_music/ttt2_jackal")
-                end
-            end
-            if (ttt2infected_true == 1) then
-                if (file.Exists("music/end_random_music/ttt2_infected", "DATA")) then
-                    print ("[End_Random_Music] Found Infected folder.")
-                else
-                    print ("[End_Random_Music] Missing Infected folder. Creating...")
-                    file.CreateDir("music/end_random_music/ttt2_infected")
-                end
-            end
+            -- if (ttt2jackal_true == 1) then
+            --     if (file.Exists("music/end_random_music/ttt2_jackal", "DATA")) then
+            --         print ("[End_Random_Music] Found Jackal folder.")
+            --     else
+            --         print ("[End_Random_Music] Missing Jackal folder. Creating...")
+            --         file.CreateDir("music/end_random_music/ttt2_jackal")
+            --     end
+            -- end
+            -- if (ttt2infected_true == 1) then
+            --     if (file.Exists("music/end_random_music/ttt2_infected", "DATA")) then
+            --         print ("[End_Random_Music] Found Infected folder.")
+            --     else
+            --         print ("[End_Random_Music] Missing Infected folder. Creating...")
+            --         file.CreateDir("music/end_random_music/ttt2_infected")
+            --     end
+            -- end
             if (ttt2jester_true == 1) then
                 if (file.Exists("music/end_random_music/ttt2_jester", "DATA")) then
                     print ("[End_Random_Music] Found Jester folder.")
@@ -197,7 +198,7 @@ if SERVER then
             print ("[End_Random_Music] Error with ConVar")
         end
 
-        print ("[End_Random_Music] Wintype is: " .. wintype)
+        print ("[End_Random_Music] DEBUG: wintype is:", wintype, "type:", type(wintype))
 
         --Search for files
         filesGlobal = {}
@@ -207,12 +208,12 @@ if SERVER then
         if (GetConVar("ttt_end_random_music_timeout_not_innocent"):GetString() == "1") then
             filesTimeout = {}
         end
-        if (ttt2jackal_true == 1) then
-            filesTTT2Jackal = {}
-        end
-        if (ttt2infected_true == 1) then
-            filesTTT2Infected = {}
-        end
+        -- if (ttt2jackal_true == 1) then
+        --     filesTTT2Jackal = {}
+        -- end
+        -- if (ttt2infected_true == 1) then
+        --     filesTTT2Infected = {}
+        -- end
         if (ttt2jester_true == 1) then
             filesTTT2Jester = {}
         end
@@ -228,14 +229,14 @@ if SERVER then
         if (ttt2serialkiller_true == 1) then
             filesTTT2Serialkiller = {}
         end
-        if (ttt2hidden_true == 1) then
-            filesTTT2Hidden = {}
-        end
-        if (ttt_custom_roles_true == 1) then
-            filesCustomJester = {}
-            filesCustomKiller = {}
-            filesCustomMonsters = {}
-        end
+        -- if (ttt2hidden_true == 1) then
+        --     filesTTT2Hidden = {}
+        -- end
+        -- if (ttt_custom_roles_true == 1) then
+        --     filesCustomJester = {}
+        --     filesCustomKiller = {}
+        --     filesCustomMonsters = {}
+        -- end
 
         if (GetConVar("ttt_end_random_music_silentscan"):GetString() == "0") then
             print ("[End_Random_Music] Searching files:")
@@ -272,22 +273,22 @@ if SERVER then
                 table.insert(filesGlobal, "other/" .. filesOther[i])
             end
         end
-        if (file.Exists(filePath .. "end_random_music/ttt2_jackal", fileSearchPath)) then
-            filesTTT2Jackal = file.Find(filePath .. "end_random_music/ttt2_jackal/*.wav", fileSearchPath)
-            if (filesTTT2Jackal != nil) then
-                for i = 1, table.getn(filesTTT2Jackal), 1 do
-                    table.insert(filesGlobal, "ttt2_jackal/" .. filesTTT2Jackal[i])
-                end
-            end
-        end
-        if (file.Exists(filePath .. "end_random_music/ttt2_infected", fileSearchPath)) then
-            filesTTT2Infected = file.Find(filePath .. "end_random_music/ttt2_infected/*.wav", fileSearchPath)
-            if (filesTTT2Infected != nil) then
-                for i = 1, table.getn(filesTTT2Infected), 1 do
-                    table.insert(filesGlobal, "ttt2_infected/" .. filesTTT2Infected[i])
-                end
-            end
-        end
+        -- if (file.Exists(filePath .. "end_random_music/ttt2_jackal", fileSearchPath)) then
+        --     filesTTT2Jackal = file.Find(filePath .. "end_random_music/ttt2_jackal/*.wav", fileSearchPath)
+        --     if (filesTTT2Jackal != nil) then
+        --         for i = 1, table.getn(filesTTT2Jackal), 1 do
+        --             table.insert(filesGlobal, "ttt2_jackal/" .. filesTTT2Jackal[i])
+        --         end
+        --     end
+        -- end
+        -- if (file.Exists(filePath .. "end_random_music/ttt2_infected", fileSearchPath)) then
+        --     filesTTT2Infected = file.Find(filePath .. "end_random_music/ttt2_infected/*.wav", fileSearchPath)
+        --     if (filesTTT2Infected != nil) then
+        --         for i = 1, table.getn(filesTTT2Infected), 1 do
+        --             table.insert(filesGlobal, "ttt2_infected/" .. filesTTT2Infected[i])
+        --         end
+        --     end
+        -- end
         if (file.Exists(filePath .. "end_random_music/ttt2_jester", fileSearchPath)) then
             filesTTT2Jester = file.Find(filePath .. "end_random_music/ttt2_jester/*.wav", fileSearchPath)
             if (filesTTT2Jester != nil) then
@@ -328,38 +329,38 @@ if SERVER then
                 end
             end
         end
-        if (file.Exists(filePath .. "end_random_music/ttt2_hidden", fileSearchPath)) then
-            filesTTT2Hidden = file.Find(filePath .. "end_random_music/ttt2_hidden/*.wav", fileSearchPath)
-            if (filesTTT2Hidden != nil) then
-                for i = 1, table.getn(filesTTT2Hidden), 1 do
-                    table.insert(filesGlobal, "ttt2_hidden/" .. filesTTT2Hidden[i])
-                end
-            end
-        end
-        if (file.Exists(filePath .. "end_random_music/custom_jester", fileSearchPath)) then
-            filesCustomJester = file.Find(filePath .. "end_random_music/custom_jester/*.wav", fileSearchPath)
-            if (filesCustomJester != nil) then
-                for i = 1, table.getn(filesCustomJester), 1 do
-                    table.insert(filesGlobal, "custom_jester/" .. filesCustomJester[i])
-                end
-            end
-        end
-        if (file.Exists(filePath .. "end_random_music/custom_killer", fileSearchPath)) then
-            filesCustomKiller = file.Find(filePath .. "end_random_music/custom_killer/*.wav", fileSearchPath)
-            if (filesCustomKiller != nil) then
-                for i = 1, table.getn(filesCustomKiller), 1 do
-                    table.insert(filesGlobal, "custom_killer/" .. filesCustomKiller[i])
-                end
-            end
-        end
-        if (file.Exists(filePath .. "end_random_music/custom_monsters", fileSearchPath)) then
-            filesCustomMonsters = file.Find(filePath .. "end_random_music/custom_monsters/*.wav", fileSearchPath)
-            if (filesCustomMonsters != nil) then
-                for i = 1, table.getn(filesCustomMonsters), 1 do
-                    table.insert(filesGlobal, "custom_monsters/" .. filesCustomMonsters[i])
-                end
-            end
-        end
+        -- if (file.Exists(filePath .. "end_random_music/ttt2_hidden", fileSearchPath)) then
+        --     filesTTT2Hidden = file.Find(filePath .. "end_random_music/ttt2_hidden/*.wav", fileSearchPath)
+        --     if (filesTTT2Hidden != nil) then
+        --         for i = 1, table.getn(filesTTT2Hidden), 1 do
+        --             table.insert(filesGlobal, "ttt2_hidden/" .. filesTTT2Hidden[i])
+        --         end
+        --     end
+        -- end
+        -- if (file.Exists(filePath .. "end_random_music/custom_jester", fileSearchPath)) then
+        --     filesCustomJester = file.Find(filePath .. "end_random_music/custom_jester/*.wav", fileSearchPath)
+        --     if (filesCustomJester != nil) then
+        --         for i = 1, table.getn(filesCustomJester), 1 do
+        --             table.insert(filesGlobal, "custom_jester/" .. filesCustomJester[i])
+        --         end
+        --     end
+        -- end
+        -- if (file.Exists(filePath .. "end_random_music/custom_killer", fileSearchPath)) then
+        --     filesCustomKiller = file.Find(filePath .. "end_random_music/custom_killer/*.wav", fileSearchPath)
+        --     if (filesCustomKiller != nil) then
+        --         for i = 1, table.getn(filesCustomKiller), 1 do
+        --             table.insert(filesGlobal, "custom_killer/" .. filesCustomKiller[i])
+        --         end
+        --     end
+        -- end
+        -- if (file.Exists(filePath .. "end_random_music/custom_monsters", fileSearchPath)) then
+        --     filesCustomMonsters = file.Find(filePath .. "end_random_music/custom_monsters/*.wav", fileSearchPath)
+        --     if (filesCustomMonsters != nil) then
+        --         for i = 1, table.getn(filesCustomMonsters), 1 do
+        --             table.insert(filesGlobal, "custom_monsters/" .. filesCustomMonsters[i])
+        --         end
+        --     end
+        -- end
         if (GetConVar("ttt_end_random_music_silentscan"):GetString() == "0") then
             if (filesGlobal != nil) then
                 for i = 1, table.getn(filesGlobal), 1 do

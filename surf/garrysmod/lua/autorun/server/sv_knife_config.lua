@@ -34,5 +34,5 @@ for _, fileName in ipairs(swepFiles) do
     })
 end
 
-print("[KnifeConfig] Loaded knife skins:")
-PrintTable(KnifeSkins)
+print("[KnifeConfig] Loaded knife skins")
+-- PrintTable(KnifeSkins)

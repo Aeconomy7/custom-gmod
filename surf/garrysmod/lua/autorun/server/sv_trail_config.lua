@@ -17,5 +17,5 @@ for _, file in ipairs(trailFiles) do
     })
 end
 
-print("[TrailConfig] Loaded trails:")
-PrintTable(TrailOptions)
+print("[TrailConfig] Loaded trails")
+-- PrintTable(TrailOptions)

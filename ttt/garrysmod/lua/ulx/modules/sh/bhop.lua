@@ -11,14 +11,14 @@ if CLIENT then
 end
 
 -- Enable bhop by default for all players when they join or respawn
-if SERVER then
-    hook.Add("PlayerInitialSpawn", "AutoEnableBhop", function(ply)
-        ply:SetNWInt("bhop", 1)
-    end)
-    hook.Add("PlayerSpawn", "AutoEnableBhopOnSpawn", function(ply)
-        ply:SetNWInt("bhop", 1)
-    end)
-end
+-- if SERVER then
+--     hook.Add("PlayerInitialSpawn", "AutoEnableBhop", function(ply)
+--         ply:SetNWInt("bhop", 1)
+--     end)
+--     hook.Add("PlayerSpawn", "AutoEnableBhopOnSpawn", function(ply)
+--         ply:SetNWInt("bhop", 1)
+--     end)
+-- end 
 
 function ulx.bhop( calling_ply, target_plys, should_revoke )
 	if not target_plys[ 1 ]:IsValid() then
@@ -55,6 +55,6 @@ end
 local bhop = ulx.command("Fun", "ulx bhop", ulx.bhop, "!bhop")
 bhop:addParam{ type=ULib.cmds.PlayersArg, ULib.cmds.optional }
 bhop:addParam{ type=ULib.cmds.BoolArg, invisible=true }
-bhop:defaultAccess(ULib.ACCESS_ALL)
+bhop:defaultAccess(ULib.ACCESS_ADMIN)
 bhop:help( "Grants auto-bhop to target(s)." )
 bhop:setOpposite( "ulx unbhop", {_, _, true}, "!unbhop" )
