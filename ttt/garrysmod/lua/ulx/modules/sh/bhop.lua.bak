@@ -11,14 +11,26 @@ if CLIENT then
 end
 
 -- Enable bhop by default for all players when they join or respawn
--- if SERVER then
---     hook.Add("PlayerInitialSpawn", "AutoEnableBhop", function(ply)
---         ply:SetNWInt("bhop", 1)
---     end)
---     hook.Add("PlayerSpawn", "AutoEnableBhopOnSpawn", function(ply)
---         ply:SetNWInt("bhop", 1)
---     end)
--- end 
+if SERVER then
+    -- hook.Add("PlayerInitialSpawn", "AutoEnableBhop", function(ply)
+    --     ply:SetNWInt("bhop", 1)
+    -- end)
+    -- hook.Add("PlayerSpawn", "AutoEnableBhopOnSpawn", function(ply)
+    --     ply:SetNWInt("bhop", 1)
+    -- end)
+	hook.Add("Tick", "ULX_BhopVelocityCap", function()
+        for _, ply in ipairs(player.GetAll()) do
+            if ply:GetNWInt("bhop", 0) == 1 and ply:KeyDown(IN_JUMP) then
+                local vel = ply:GetVelocity()
+                local horizSpeed = Vector(vel.x, vel.y, 0):Length()
+                if horizSpeed > 500 then
+                    local scale = 500 / horizSpeed
+                    ply:SetVelocity(Vector(vel.x * scale - vel.x, vel.y * scale - vel.y, 0))
+                end
+            end
+        end
+    end)
+end 
 
 function ulx.bhop( calling_ply, target_plys, should_revoke )
 	if not target_plys[ 1 ]:IsValid() then

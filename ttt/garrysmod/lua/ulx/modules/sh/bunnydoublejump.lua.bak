@@ -1,0 +1,75 @@
+if SERVER then
+    hook.Add("PlayerInitialSpawn", "AutoEnableBunnyDoubleJump", function(ply)
+        ply:SetNWInt("bunnydoublejump", 1)
+        ply:SetNWInt("doublejump_power", 185)
+    end)
+
+    local bunnydoublejump = ulx.command("Fun", "ulx bunnydoublejump", function(calling_ply, target_plys, power)
+        power = power or 185
+        for _, ply in ipairs(target_plys) do
+            ply:SetNWInt("bunnydoublejump", 1)
+            ply:SetNWInt("doublejump_power", power)
+        end
+        ulx.fancyLogAdmin(calling_ply, "#A enabled bunny double jump for #T with power #s", target_plys, power)
+    end, "!bunnydoublejump")
+    bunnydoublejump:addParam{ type=ULib.cmds.PlayersArg }
+    bunnydoublejump:addParam{ type=ULib.cmds.NumArg, min=1, max=1000, default=185, ULib.cmds.optional, hint="power" }
+    bunnydoublejump:defaultAccess(ULib.ACCESS_ADMIN)
+    bunnydoublejump:help("Enable bunny double jump for players. Optionally set jump power (default 185).")
+    bunnydoublejump:setOpposite("ulx nobunnydoublejump", {_, _, true}, "!nobunnydoublejump")
+
+    hook.Add("KeyPress", "ULX_BunnyDoubleJump", function(ply, key)
+        if key ~= IN_JUMP then return end
+        if ply:GetNWInt("bunnydoublejump", 0) ~= 1 then return end
+
+        local isSpectator = (ply.IsObserver and ply:IsObserver()) or false
+        if not ply:Alive() or ply:WaterLevel() > 0 or isSpectator then return end
+
+        ply.ulxJumpCount = ply.ulxJumpCount or 0
+        ply.ulxJumpReleased = ply.ulxJumpReleased or true
+
+        if ply:IsOnGround() then
+            ply.ulxJumpCount = 0
+        end
+
+        -- Only allow jump if jump was released after landing
+        if not ply.ulxJumpReleased then return end
+
+        if ply.ulxJumpCount == 0 then
+            ply.ulxJumpCount = 1
+            ply.ulxJumpReleased = false
+        elseif ply.ulxJumpCount == 1 then
+            local power = ply:GetNWInt("doublejump_power", 185)
+            local vel = ply:GetVelocity()
+            local addZ = power - vel.z
+            ply:SetVelocity(Vector(0, 0, addZ))
+            ply.ulxJumpCount = 2
+            ply.ulxJumpReleased = false
+        end
+    end)
+
+    hook.Add("KeyRelease", "ULX_BunnyDoubleJumpRelease", function(ply, key)
+        local isSpectator = (ply.IsObserver and ply:IsObserver()) or false
+        if key == IN_JUMP and ply:Alive() and not isSpectator then return end
+            ply.ulxJumpReleased = true
+        end
+    end)
+
+    hook.Add("OnPlayerHitGround", "ULX_ResetBunnyDoubleJump", function(ply)
+        local isSpectator = (ply.IsObserver and ply:IsObserver()) or false
+        if not ply:Alive() and not isSpectator then return end
+        ply.ulxJumpCount = 0
+        ply.ulxJumpReleased = true -- Allow double jump immediately after landing
+    end)
+
+    -- Auto bhop AFTER jump or double jump
+    hook.Add("SetupMove", "ULX_AutoBhopFix", function(ply, mv)
+        if ply:GetNWInt("bunnydoublejump", 0) ~= 1 then return end
+        local isSpectator = (ply.IsObserver and ply:IsObserver()) or false
+        print("[BDJ] Result: ", ply:Alive(), ply:WaterLevel(), isSpectator)
+        if not ply:Alive() or ply:WaterLevel() > 0 or isSpectator then return end
+        if mv:KeyDown(IN_JUMP) and not ply:IsOnGround() then
+            mv:SetButtons(bit.band(mv:GetButtons(), bit.bnot(IN_JUMP)))
+        end
+    end)
+end

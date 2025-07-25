@@ -12,6 +12,7 @@ if SERVER then
             for _, ply in ipairs(player.GetAll()) do
                 ply:SetNWInt("bhop", 1)
                 ply:SetNWInt("doublejump", 0)
+                ply:SetNWInt("bunnydoublejump", 0)
             end
             ulx.fancyLogAdmin(calling_ply, "#A set physics mode to BHOP")
         elseif mode == "doublejump" then
@@ -25,24 +26,41 @@ if SERVER then
             for _, ply in ipairs(player.GetAll()) do
                 ply:SetNWInt("bhop", 0)
                 ply:SetNWInt("doublejump", 1) 
+                ply:SetNWInt("bunnydoublejump", 0)
             end
             ulx.fancyLogAdmin(calling_ply, "#A set physics mode to LOW GRAVITY DOUBLE JUMP")
+
+        elseif mode == "bunnydoublejump" then
+            -- Set double jump convars
+            RunConsoleCommand("sv_airaccelerate", "150")
+            RunConsoleCommand("sv_gravity", "285")
+            RunConsoleCommand("sv_maxvelocity", "3500")
+            RunConsoleCommand("sv_sticktoground", "1")
+            -- RunConsoleCommand("sv_enablebunnyhopping", "0")
+
+            for _, ply in ipairs(player.GetAll()) do
+                ply:SetNWInt("bhop", 0)
+                ply:SetNWInt("doublejump", 0)
+                ply:SetNWInt("bunnydoublejump", 1)
+            end
+            ulx.fancyLogAdmin(calling_ply, "#A set physics mode to BUNNY DOUBLE JUMP")
         else
             ULib.tsayError(calling_ply, "Unknown mode: " .. tostring(mode), true)
         end
     end
 
     local swap = ulx.command("Fun", "ulx swap_physics", ulx.swap_physics, "!swap_physics")
-    swap:addParam{ type=ULib.cmds.StringArg, completes={"bhop", "doublejump"}, hint="mode" }
+    swap:addParam{ type=ULib.cmds.StringArg, completes={"bhop", "doublejump", "bunnydoublejump"}, hint="mode" }
     swap:defaultAccess(ULib.ACCESS_SUPERADMIN)
-    swap:help("Swap between bhop and low gravity double jump modes.")
+    swap:help("Swap between jump physics modes.")
 
-    -- Ensure double jump is disabled at server start
-    hook.Add("Initialize", "ULX_DisableDoubleJumpOnStart", function()
+    -- Ensure bunny double jump is enabled at server start
+    hook.Add("Initialize", "ULX_EnableBunnyDoubleJumpOnStart", function()
         print("ULX: Disabling double jump on server start")
         for _, ply in ipairs(player.GetAll()) do
             ply:SetNWInt("bhop", 1)
             ply:SetNWInt("doublejump", 0)
+            ply:SetNWInt("bunnydoublejump", 0)
         end
     end)
 end

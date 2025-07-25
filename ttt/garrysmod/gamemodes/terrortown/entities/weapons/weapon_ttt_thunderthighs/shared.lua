@@ -1,6 +1,7 @@
 if SERVER then
     AddCSLuaFile( "shared.lua" )
     resource.AddFile("sound/reverb_fart.mp3")
+    resource.AddFile("sound/sl8r_fart.mp3")
  end
 
 SWEP.HoldType              = "normal"
@@ -70,7 +71,13 @@ function SWEP:PrimaryAttack()
   self:SetNextPrimaryFire( CurTime() + 1.5 )
   self:EmitSound("weapons/mortar/mortar_shell_incomming1.wav", 100, 100, 1, CHAN_AUTO)
       timer.Simple( .5, function()
-  self:EmitSound("reverb_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   random = math.random(1, 2)
+   if random == 1 then
+      self:EmitSound("reverb_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   else
+      self:EmitSound("sl8r_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   end
+   
   self.Owner:SetVelocity(aimvector * 4000--[[0]] )
    local effectdata = EffectData()
    effectdata:SetOrigin( self.Owner:GetPos() )
@@ -90,7 +97,12 @@ if ( !self:CanPrimaryAttack() ) then return end
    self:SetNextSecondaryFire( CurTime() + 0.5 )
    self:EmitSound("weapons/mortar/mortar_shell_incomming1.wav", 100, 100, 1, CHAN_AUTO)
       timer.Simple( .5, function()
-   self:EmitSound("reverb_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   random = math.random(1, 2)
+   if random == 1 then
+      self:EmitSound("reverb_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   else
+      self:EmitSound("sl8r_fart.mp3", 100, 100, 1, CHAN_AUTO)
+   end
    self.Owner:SetVelocity(Vector(0,0,1400))
    self:TakePrimaryAmmo( 1 )
     local effectdata = EffectData()
