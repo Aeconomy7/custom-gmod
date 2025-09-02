@@ -1,3 +1,5 @@
+CreateConVar("ttt_velocity_hud_enabled", 1, FCVAR_ARCHIVE, "Show velocity HUD", 0, 1)
+
 surface.CreateFont("Impact36", {
     font = "Impact",
     size = 36,
@@ -40,6 +42,8 @@ local function GetRainbowColor(speed)
 end
 
 hook.Add("HUDPaint", "DrawVelocityHUD", function()
+    if not GetConVar("ttt_velocity_hud_enabled"):GetBool() then return end
+
     local ply = LocalPlayer()
     if not IsValid(ply) or not ply:Alive() then return end
 

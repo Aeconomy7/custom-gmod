@@ -1,0 +1,89 @@
+-- AddCSLuaFile("autorun/client/cl_roundendmusicserver.lua")
+-- print("[RoundEndMusic DEBUG] cl_roundendmusicserver.lua loaded!")
+
+surface.CreateFont("Impact24", {
+    font = "Impact",
+    size = 24,
+    weight = 600,
+    antialias = true,
+    extended = true
+})
+
+local musicInfo = nil
+local musicInfoExpire = 0
+
+net.Receive("ttt_end_random_music", function()
+    print("[RoundEndMusic DEBUG] Received net message: ttt_end_random_music")
+    local chosenMusic = net.ReadString()
+    local songName = net.ReadString()
+    local band = net.ReadString()
+    local pngPath = net.ReadString()
+
+    print("[RoundEndMusic DEBUG] Received net message:")
+    print("  chosenMusic: " .. tostring(chosenMusic))
+    print("  songName: " .. tostring(songName))
+    print("  band: " .. tostring(band))
+    print("  pngPath: " .. tostring(pngPath))
+
+    if pngPath == "" then
+        pngPath = "sound/music/end_random_music/unknown_song.png"
+    end
+
+    musicInfo = {
+        songName = songName,
+        band = band,    
+        pngPath = pngPath
+    }
+    musicInfoExpire = CurTime() + 25 
+end)
+
+-- hook.Add("HUDPaint", "DrawRoundEndMusicInfo", function()
+--     if not musicInfo or CurTime() > musicInfoExpire then return end
+
+--     local w, h = 400, 80
+--     local x = (ScrW() - w) / 2
+--     local y = ScrH() * 0.15
+
+--     -- Background box
+--     surface.SetDrawColor(20, 20, 20, 220)
+--     surface.DrawRect(x, y, w, h)
+
+--     -- Song image
+--     if musicInfo.pngPath ~= "" then
+--         surface.SetDrawColor(255, 255, 255, 255)
+--         local mat = Material(musicInfo.pngPath)
+--         surface.SetMaterial(mat)
+--         surface.DrawTexturedRect(x + 8, y + 8, 64, 64)
+--     end
+
+--     -- Song and band text
+--     draw.SimpleText("Song: " .. musicInfo.songName, "Impact24", x + 80, y + 12, Color(255,255,255), TEXT_ALIGN_LEFT)
+--     draw.SimpleText("Band: " .. musicInfo.band, "Impact24", x + 80, y + 40, Color(200,200,200), TEXT_ALIGN_LEFT)
+-- end)
+
+hook.Add("TTTEndRound", "ShowRoundEndMusicInfo", function()
+    if not musicInfo then return end
+
+    local frameW, frameH = 400, 120
+    local frame = vgui.Create("DFrame")
+    frame:SetTitle("Now Playing")
+    frame:SetSize(frameW, frameH)
+    frame:SetPos((ScrW() - frameW) / 2, ScrH() * 0.15)
+    frame:MakePopup()
+
+    local y = 30
+    if musicInfo.pngPath ~= "" then
+        local img = vgui.Create("DImage", frame)
+        img:SetImage(musicInfo.pngPath)
+        img:SetPos(10, y)
+        img:SetSize(64, 64)
+        y = y + 70
+    end
+
+    local lbl = vgui.Create("DLabel", frame)
+    lbl:SetText("Song: " .. musicInfo.songName .. "\nBand: " .. musicInfo.band)
+    lbl:SetPos(80, 30)
+    lbl:SetSize(300, 80)
+    lbl:SetFont("Impact24")
+    lbl:SetWrap(true)
+end)

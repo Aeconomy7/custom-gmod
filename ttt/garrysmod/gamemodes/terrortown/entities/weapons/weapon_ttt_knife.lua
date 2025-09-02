@@ -30,7 +30,9 @@ SWEP.Base = "weapon_tttbase"
 
 SWEP.UseHands = true
 SWEP.ViewModel = "models/weapons/cstrike/c_knife_t.mdl"
+-- SWEP.ViewModel = "models/weapons/w_csgo_karambit.mdl"
 SWEP.WorldModel = "models/weapons/w_knife_t.mdl"
+-- SWEP.WorldModel = "models/weapons/w_csgo_karambit.mdl"
 SWEP.idleResetFix = true
 
 SWEP.Primary.Damage = 1337
@@ -215,6 +217,7 @@ function SWEP:StabKill(tr, spos, sdest)
 
         local knife = ents.Create("prop_physics")
         knife:SetModel("models/weapons/w_knife_t.mdl")
+        -- knife:SetModel("models/weapons/w_csgo_karambit.mdl")
         knife:SetPos(pos)
         knife:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
         knife:SetAngles(ang)

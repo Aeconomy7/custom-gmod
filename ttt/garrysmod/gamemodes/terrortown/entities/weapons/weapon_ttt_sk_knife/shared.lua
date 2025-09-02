@@ -97,6 +97,17 @@ function SWEP:PrimaryAttack()
 
 
 	if SERVER and tr.Hit and tr.HitNonWorld and IsValid(hitEnt) and hitEnt:IsPlayer() then
+		-- Backstab check
+		local victimForward = hitEnt:GetForward()
+		local toAttacker = (self:GetOwner():GetPos() - hitEnt:GetPos()):GetNormalized()
+		local dot = victimForward:Dot(toAttacker)
+
+		-- dot > 0.5 means attacker is behind the victim (tweak threshold as needed)
+		if dot > 0.5 then
+			self:StabKill(tr, spos, sdest)
+			return
+		end
+		
 		-- knife damage is never karma'd, so don't need to take that into
 		-- account we do want to avoid rounding error strangeness caused by
 		-- other damage scaling, causing a death when we don't expect one, so

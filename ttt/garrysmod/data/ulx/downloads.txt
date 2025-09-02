@@ -6,14 +6,29 @@
 ;sound/cheeseman.mp3 <-- Adds the file 'cheeseman.mp3' under the sound folder
 ;sound/my_music <-- Adds all files within the my_music folder, inside the sound folder
 
-data/music/end_random_music/innocent
-data/music/end_random_music/traitor
-data/music/end_random_music/ttt2_serialkiller
-data/music/end_random_music/ttt2_marker
+sound/music/end_random_music/innocents
+sound/music/end_random_music/other
+sound/music/end_random_music/traitors
+sound/music/end_random_music/necromancers
+sound/music/end_random_music/jesters
+sound/music/end_random_music/serialkillers
+sound/music/end_random_music/markers
+sound/music/end_random_music/pirates
+sound/music/end_random_music
+lua/autorun/client/roundendmusicclient.lua
 lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
 maps
 maps/ttt_squidgame_facility.bsp
+maps/ttt_abandoned_mall_2025_v3.bsp
+materials/music/end_random_music
+materials/music/end_random_music/innocents
+materials/music/end_random_music/other
+materials/music/end_random_music/traitors
+materials/music/end_random_music/jesters
+materials/music/end_random_music/markers
+materials/music/end_random_music/necromancers
+materials/music/end_random_music/pirates
 materials/vgui/entities/npc_zsssamusu.vmt
 materials/vgui/entities/npc_zsssamusu.vtf
 materials/models/playerlink/link3_normal.vtf
