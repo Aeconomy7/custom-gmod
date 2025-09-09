@@ -18,7 +18,6 @@ sound/music/end_random_music
 lua/autorun/client/roundendmusicclient.lua
 lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
-maps
 maps/ttt_squidgame_facility.bsp
 maps/ttt_abandoned_mall_2025_v3.bsp
 materials/music/end_random_music
@@ -160,6 +159,3 @@ sound/mjow.wav
 sound/hookshot-shoot.wav
 sound/reverb_fart.mp3
 sound/WHAT-THE-FU-BOOM.mp3
-addons/soundbrowser/lua/autorun/soundbrowser.lua
-addons/soundbrowser/lua/autorun/server/sv_soundbrowser.lua
-addons/soundbrowser/lua/autorun/client/cl_soundbrowser.lua
