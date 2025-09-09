@@ -31,20 +31,23 @@
 	"time" "300"
 }
 {
-	"text" "Discover Bearserker Gummies – the ultimate pre-workout supplement infused with powerful ingredients to boost your energy and performance. Join the Bearserker community today: https://bearserkergummies.com/"
-	"time" "1600"
-}
-{
 	"text" "To disable end round music, open your console and paste in: ttt_end_random_music_enabled 0"
-	"red" "191"
-	"green" "0"
+	"red" "132"
+	"green" "204"
 	"blue" "255"
 	"time" "900"
 }
 {
 	"text" "To hide the velocity hud, open your console and paste in: ttt_velocity_hud_enabled 0"
-	"red" "0"
-	"green" "148"
-	"blue" "43"
+	"red" "255"
+	"green" "118"
+	"blue" "118"
+	"time" "900"
+}
+{
+	"text" "Spread internet love yall frfr! Check your stats with !mystats"
+	"red" "144"
+	"green" "255"
+	"blue" "178"
 	"time" "900"
 }

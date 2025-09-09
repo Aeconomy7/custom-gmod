@@ -1,0 +1,1 @@
+util.PrecacheModel("materials/bl_mats/smiley.vtf")

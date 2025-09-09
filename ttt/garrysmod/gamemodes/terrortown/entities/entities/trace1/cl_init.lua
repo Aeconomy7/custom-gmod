@@ -83,9 +83,10 @@ function ENT:Draw()
 	
 	else
 	// If we're viewing another player we start at their weapon
-		if (Owner == NULL) then return end		
-		StartPos = Owner:GetAttachment(3).Pos
-		if StartPos == NULL then return end
+		if (Owner == NULL) then return end        
+		local attachment = Owner:GetAttachment(3)
+		if not attachment or not attachment.Pos then return end
+		StartPos = attachment.Pos
 	
 	end
 

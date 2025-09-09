@@ -1,0 +1,5 @@
+"UnlitGeneric"
+{
+    "$basetexture" "bl_mats/smiley"
+    "$translucent" 1
+}
