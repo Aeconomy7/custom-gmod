@@ -18,10 +18,10 @@ local function GetPlayerStats(steamid64)
         -- count wins when their team == winning team
         stats[role .. "_wins"] = tonumber(sql.QueryValue([[
             SELECT COUNT(*) 
-            FROM round_players rp
-            JOIN rounds r ON rp.round_id = r.round_id
+            FROM rounds r
+            JOIN round_players rp ON round_id = rp.round_id
             WHERE rp.steamid=']] .. steamid64 .. [['
-            AND rp.team=']] .. role )) or 0
+            AND rp.team=']] .. role .. [[']])) or 0
     end
 
     -- overall wins (any role, team match)
@@ -34,10 +34,37 @@ local function GetPlayerStats(steamid64)
         AND rp.team = r.winning_team
     ]])) or 0
 
-    stats.kills = tonumber(sql.QueryValue("SELECT COUNT(*) FROM round_kills WHERE killer_steamid='" .. steamid64 .. "'")) or 0
-    stats.deaths = tonumber(sql.QueryValue("SELECT COUNT(*) FROM round_kills WHERE victim_steamid='" .. steamid64 .. "'")) or 0
-    stats.killlog = sql.Query("SELECT * FROM round_kills WHERE killer_steamid='" .. steamid64 .. "' OR victim_steamid='" .. steamid64 .. "' ORDER BY time DESC LIMIT 20") or {}
- or 0
+    -- stats.kills = tonumber(sql.QueryValue("SELECT COUNT(*) FROM round_kills WHERE killer_steamid='" .. steamid64 .. "'")) or 0
+    -- stats.deaths = tonumber(sql.QueryValue("SELECT COUNT(*) FROM round_kills WHERE victim_steamid='" .. steamid64 .. "'")) or 0
+    -- stats.killlog = sql.Query("SELECT time, killer_nick, killer_role, victim_nick, victim_role, weapon FROM round_kills WHERE killer_steamid='" .. steamid64 .. "' OR victim_steamid='" .. steamid64 .. "' ORDER BY time DESC LIMIT 20") or {}
+    -- Count kills (excluding test rounds)
+    stats.kills = tonumber(sql.QueryValue([[
+        SELECT COUNT(*)
+        FROM round_kills rk
+        JOIN rounds r ON rk.round_id = r.round_id
+        WHERE rk.killer_steamid = ']] .. steamid64 .. [['
+        AND r.test_round = 0
+    ]]) ) or 0
+
+    -- Count deaths (excluding test rounds)
+    stats.deaths = tonumber(sql.QueryValue([[
+        SELECT COUNT(*)
+        FROM round_kills rk
+        JOIN rounds r ON rk.round_id = r.round_id
+        WHERE rk.victim_steamid = ']] .. steamid64 .. [['
+        AND r.test_round = 0
+    ]]) ) or 0
+
+    -- Kill log (last 20 entries, excluding test rounds)
+    stats.killlog = sql.Query([[
+        SELECT rk.time, rk.killer_nick, rk.killer_role, rk.victim_nick, rk.victim_role, rk.weapon
+        FROM round_kills rk
+        JOIN rounds r ON rk.round_id = r.round_id
+        WHERE (rk.killer_steamid = ']] .. steamid64 .. [[' OR rk.victim_steamid = ']] .. steamid64 .. [[')
+        AND r.test_round = 0
+        ORDER BY rk.time DESC
+        LIMIT 20
+    ]]) or {} 
 
     return stats
 end

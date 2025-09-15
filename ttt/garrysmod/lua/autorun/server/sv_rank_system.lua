@@ -1,11 +1,15 @@
 -- sv_rank_system.lua
 if not SERVER then return end
 
+util.AddNetworkString("sc0b_LevelUpPopup")
+
+
 -- Create SQLite table for XP
 sql.Query([[
 CREATE TABLE IF NOT EXISTS player_xp (
     steamid TEXT PRIMARY KEY,
     xp INTEGER DEFAULT 0,
+    total_xp INTEGER DEFAULT 0,
     level INTEGER DEFAULT 1
 )
 ]])
@@ -19,37 +23,43 @@ local function XPToLevel(xp)
     return level
 end
 
--- Get player XP & level
+-- Return: xp, level, total_xp
 local function GetPlayerXP(ply)
     local steamid = ply:SteamID64()
-    local row = sql.QueryRow(string.format("SELECT xp, level FROM player_xp WHERE steamid = '%s'", steamid))
+    local row = sql.QueryRow(string.format("SELECT xp, level, total_xp FROM player_xp WHERE steamid = '%s'", steamid))
     if row then
-        return tonumber(row.xp), tonumber(row.level)
+        return tonumber(row.xp), tonumber(row.level), tonumber(row.total_xp or 0)
     else
-        -- Insert new player
-        sql.Query(string.format("INSERT INTO player_xp (steamid, xp, level) VALUES ('%s', 0, 1)", steamid))
-        return 0, 1
+        sql.Query(string.format("INSERT INTO player_xp (steamid, xp, level, total_xp) VALUES ('%s', 0, 0, 1)", steamid))
+        return 0, 1, 0
     end
 end
 
--- Add XP to a player
 local function AddXP(ply, amount)
-    local currentXP, currentLevel = GetPlayerXP(ply)
+    local currentXP, currentLevel, currentTotalXP = GetPlayerXP(ply)
     local newXP = currentXP + amount
     local newLevel = XPToLevel(newXP)
+    local newTotalXP = currentTotalXP + amount
 
-    -- Update DB
-    sql.Query(string.format("INSERT INTO player_xp (steamid, xp, level) VALUES ('%s', %d, %d) ON CONFLICT(steamid) DO UPDATE SET xp=%d, level=%d",
-        ply:SteamID64(), newXP, newLevel, newXP, newLevel))
+    sql.Query(string.format(
+        "INSERT INTO player_xp (steamid, xp, level, total_xp) VALUES ('%s', %d, %d, %d) ON CONFLICT(steamid) DO UPDATE SET xp=%d, level=%d, total_xp=%d",
+        ply:SteamID64(), newXP, newLevel, newTotalXP, newXP, newLevel, newTotalXP
+    ))
 
-    -- Update NW vars for client
     ply:SetNWInt("level", newLevel)
     ply:SetNWInt("xp", newXP)
+    ply:SetNWInt("total_xp", newTotalXP)
 
-    -- Optional: notify player on level up
     if newLevel > currentLevel then
-        ply:EmitSound("maplestory_level_up.mp3", 50, 100)
-        ply:ChatPrint("[LEVEL UP] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
+        ply:EmitSound("maplestory_level_up.mp3", 100, 100)
+        for _, v in ipairs(player.GetAll()) do
+            v:ChatPrint("[LEVEL UP] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
+        end
+
+        -- Popup for the player
+        net.Start("sc0b_LevelUpPopup")
+        net.WriteInt(newLevel, 16)
+        net.Send(ply)
     end
 end
 
@@ -72,9 +82,10 @@ end)
 -- Send XP/level to client when requested
 util.AddNetworkString("sc0b_SendXP")
 concommand.Add("sc0b_request_xp", function(ply)
-    local xp, level = GetPlayerXP(ply)
+    local xp, total_xp, level  = GetPlayerXP(ply)
     net.Start("sc0b_SendXP")
     net.WriteInt(xp, 32)
+    net.WriteInt(total_xp, 32)
     net.WriteInt(level, 16)
     net.Send(ply)
 end)

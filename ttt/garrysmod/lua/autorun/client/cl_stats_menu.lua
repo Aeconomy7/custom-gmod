@@ -22,7 +22,7 @@ net.Receive("sc0b_SendStats", function()
 
     local frame = vgui.Create("DFrame")
     frame:SetTitle("TRT TTT2 Stats")
-    frame:SetSize(480, 700)
+    frame:SetSize(700, 700)
     frame:Center()
     frame:MakePopup()
 
@@ -117,7 +117,16 @@ net.Receive("sc0b_SendStats", function()
         local ply = LocalPlayer()
         local level = ply:GetNWInt("level", 1)
         local xp = ply:GetNWInt("xp", 0)
-        local nextLevelXP = 20 * level^2
+        local total_xp = ply:GetNWInt("total_xp", 0)
+
+        -- Calculate XP bounds for current level
+        local minXP = 20 * (level - 1)^2
+        local maxXP = 20 * level^2
+        local progress = math.Clamp((xp - minXP) / (maxXP - minXP), 0, 1)
+
+        -- Rainbow color for progress
+        local hue = progress * 360
+        local barColor = HSVToColor(hue, 1, 1)
 
         local rankBar = vgui.Create("DPanel", rankPanel)
         rankBar:SetSize(440, 60)
@@ -127,16 +136,23 @@ net.Receive("sc0b_SendStats", function()
             surface.SetDrawColor(40, 40, 40, 200)
             surface.DrawRect(0, 0, w, h)
 
-            -- XP progress
-            local progress = math.min(xp / nextLevelXP, 1)
-            surface.SetDrawColor(100, 200, 255)
+            -- XP progress bar (rainbow)
+            surface.SetDrawColor(barColor.r, barColor.g, barColor.b, 255)
             surface.DrawRect(0, h / 2, w * progress, h / 2)
 
-            -- Label
+            -- Border
+            surface.SetDrawColor(255, 255, 255, 80)
+            surface.DrawOutlinedRect(0, h / 2, w, h / 2)
+
+            -- Level label
             draw.SimpleText(string.format("Level %d %s", level, (level >= 20 and "🌟" or level >= 10 and "✨" or "•")),
                 "BudgetLabel12", 10, 5, color_white, TEXT_ALIGN_LEFT)
-            draw.SimpleText(string.format("XP: %d / %d", xp, nextLevelXP),
+            -- XP label
+            draw.SimpleText(string.format("XP: %d / %d", xp - minXP, maxXP - minXP),
                 "BudgetLabel12", 10, h / 2 + 5, color_white, TEXT_ALIGN_LEFT)
+            -- Total XP label
+            draw.SimpleText(string.format("Total XP: %d", total_xp),
+                "BudgetLabel12", w - 10, h / 2 + 5, Color(255, 215, 0), TEXT_ALIGN_RIGHT)
         end
     end)
 
@@ -160,7 +176,7 @@ net.Receive("sc0b_SendStats", function()
         surface.DrawRect(0,0,w,h)
 
         draw.SimpleText("Total Kills: "..playerKills, "BudgetLabel12", 10, 10, Color(80,220,120), TEXT_ALIGN_LEFT)
-        draw.SimpleText("Total Deaths: "..playerDeaths, "BudgetLabel12", 10, 30, Color(200,60,60), TEXT_ALIGN_LEFT)
+        draw.SimpleText("Total Deaths: "..playerDeaths, "BudgetLabel12", 10, 30, Color(238,75,43), TEXT_ALIGN_LEFT)
         draw.SimpleText("K/D Ratio: "..(playerDeaths>0 and string.format("%.2f",playerKills/playerDeaths) or "N/A"), "BudgetLabel12", w-10, 10, color_white, TEXT_ALIGN_RIGHT)
         draw.SimpleText("Last 20 Involved Kills", "BudgetLabel12", w-10, 30, color_white, TEXT_ALIGN_RIGHT)
     end
@@ -170,8 +186,8 @@ net.Receive("sc0b_SendStats", function()
         local entry = killLog[i]
         if not entry then continue end
 
-        local isKill = entry.killer_steamid == LocalPlayer():SteamID64()
-        local isDeath = entry.victim_steamid == LocalPlayer():SteamID64()
+        local isKill = entry.killer_nick == LocalPlayer():Nick()
+        local isDeath = entry.victim_nick == LocalPlayer():Nick()
 
         local entryPanel = vgui.Create("DPanel", killPanel)
         entryPanel:SetTall(40)
@@ -181,28 +197,82 @@ net.Receive("sc0b_SendStats", function()
             surface.SetDrawColor(50,50,50,180)
             surface.DrawRect(0,0,w,h)
 
-            local col = isKill and Color(80,220,120) or (isDeath and Color(200,60,60) or color_white)
+            local col = isKill and Color(80,220,120) or (isDeath and Color(238,75,43) or color_white)
 
             local text
             if isKill then
-                text = string.format("[%s] You killed %s (%s) with %s",
+                text = string.format("[%s] You (%s) killed %s (%s) with %s",
                     os.date("%H:%M:%S",entry.time),
-                    entry.victim, entry.victim_role,
+                    entry.killer_role,
+                    entry.victim_nick, entry.victim_role,
                     entry.weapon)
             elseif isDeath then
-                text = string.format("[%s] You were killed by %s (%s) with %s",
+                text = string.format("[%s] You (%s) were killed by %s (%s) with %s",
                     os.date("%H:%M:%S",entry.time),
-                    entry.killer, entry.killer_role,
+                    entry.killer_role, entry.killer_nick, entry.killer_role,
                     entry.weapon)
             else
                 text = string.format("[%s] %s (%s) → %s (%s) | %s",
                     os.date("%H:%M:%S",entry.time),
-                    entry.killer, entry.killer_role,
-                    entry.victim, entry.victim_role,
+                    entry.killer_nick, entry.killer_role,
+                    entry.victim_nick, entry.victim_role,
                     entry.weapon)
             end
 
             draw.SimpleText(text, "BudgetLabel12", 10, h/2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         end
     end
+
+
+    -- =====================
+    -- Leaderboard Tab
+    -- =====================
+    -- local leaderboardPanel = vgui.Create("DPropertySheet", tabs)
+    -- tabs:AddSheet("Leaderboard", leaderboardPanel, "icon16/trophy.png")
+
+    -- -- Panels for each leaderboard type
+    -- local overallPanel = vgui.Create("DScrollPanel", leaderboardPanel)
+    -- leaderboardPanel:AddSheet("Overall", overallPanel, "icon16/medal_gold_1.png")
+
+    -- local dailyPanel = vgui.Create("DScrollPanel", leaderboardPanel)
+    -- leaderboardPanel:AddSheet("Today", dailyPanel, "icon16/calendar.png")
+
+    -- local rolesPanel = vgui.Create("DScrollPanel", leaderboardPanel)
+    -- leaderboardPanel:AddSheet("By Role", rolesPanel, "icon16/group.png")
+
+    -- -- Request leaderboard data
+    -- net.Start("sc0b_RequestLeaderboard")
+    -- net.SendToServer()
+
+    -- net.Receive("sc0b_SendLeaderboard", function()
+    --     local data = net.ReadTable()
+
+    --     local function Populate(panel, tbl, titleFn)
+    --         panel:Clear()
+    --         for i, row in ipairs(tbl) do
+    --             local entry = vgui.Create("DPanel", panel)
+    --             entry:SetTall(30)
+    --             entry:Dock(TOP)
+    --             entry:DockMargin(0,0,0,5)
+    --             entry.Paint = function(self,w,h)
+    --                 surface.SetDrawColor(50,50,50,200)
+    --                 surface.DrawRect(0,0,w,h)
+    --                 draw.SimpleText(titleFn(i, row), "BudgetLabel12", 10, h/2, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    --             end
+    --         end
+    --     end
+
+    --     -- Fill each panel
+    --     Populate(overallPanel, data.overall, function(i,row)
+    --         return string.format("#%d %s - %s kills", i, row.killer or "Unknown", row.kills)
+    --     end)
+
+    --     Populate(dailyPanel, data.daily, function(i,row)
+    --         return string.format("#%d %s - %s kills today", i, row.killer or "Unknown", row.kills)
+    --     end)
+
+    --     Populate(rolesPanel, data.roles, function(i,row)
+    --         return string.format("#%d [%s] %s - %s kills", i, row.killer_role or "?", row.killer or "Unknown", row.kills)
+    --     end)
+    -- end)
 end)

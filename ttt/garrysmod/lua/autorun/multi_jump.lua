@@ -54,7 +54,7 @@ hook.Add("SetupMove", "Multi Jump", function(ply, mv)
 	ply:DoCustomAnimEvent(PLAYERANIMEVENT_JUMP , -1)
 
 	if SERVER then
-		ply:EmitSound("bl_sounds/jump.wav", 30, 100, 1, CHAN_AUTO)
+		ply:EmitSound("bl_sounds/jump.wav", 50, 100, 1, CHAN_AUTO)
 		-- local sprite = ents.Create("env_sprite")
 		-- if IsValid(sprite) then
 		-- 	sprite:SetKeyValue("model", "materials/bl_mats/smiley.vtf")
