@@ -48,7 +48,8 @@ if SERVER then
             victim_nick TEXT,
             victim_role TEXT,
             victim_team TEXT,
-            weapon TEXT
+            weapon TEXT,
+            headshot INTEGER DEFAULT 0
         )
     ]])
 
@@ -81,6 +82,7 @@ if SERVER then
             print("[ROUND LOGGER] Insert failed:", sql.LastError())
         else
             currentRoundID = sql.QueryValue("SELECT last_insert_rowid()")
+            SetGlobalInt("sc0b_currentRoundID", tonumber(currentRoundID) or 0)
             print("[ROUND LOGGER] Started round ID:", currentRoundID)
         end
     end)
@@ -161,7 +163,6 @@ if SERVER then
 
 
     hook.Add("TTT2PostPlayerDeath", "sc0b_LogKills", function(victim, inflictor, attacker)
-        -- Only log if we have a valid round
         if not currentRoundID or not IsValid(victim) then return end
 
         -- get killer info
@@ -185,7 +186,30 @@ if SERVER then
             end
         end
 
+        
+
+        local victimSteamID = "WORLD"
+        local victimNick = "WORLD"
+        local victimRoleName = "unknown"
+        local victimRoleTeam = "unknown"
+        if IsValid(victim) and victim:IsPlayer() and victim.GetSubRoleData then
+            victimSteamID = victim:SteamID64()
+            victimNick = victim:Nick()
+            local victimRoleData = victim:GetSubRoleData()
+            victimRole = victimRoleData and victimRoleData.name or "unknown"
+            if victimRole == "pirate_captain" then
+                if IsValid(victim.pirate_master) then
+                    victimTeam = victim.pirate_master:GetTeam() or "pirates"
+                else
+                    victimTeam = "pirates"
+                end
+            else
+                victimTeam = victimRoleData and victimRoleData.defaultTeam or "unknown"
+            end
+        end
+
         local weaponClass = "world"
+        local wasHeadshot = 0
 
         -- get weapon / dmg info
         if IsValid(inflictor) then
@@ -211,6 +235,12 @@ if SERVER then
                 print("[ROUND LOGGER] Dmg info:", dmg)
             end
             if dmg then
+                if (dmg:IsBulletDamage() or dmg:IsDamageType(DMG_CLUB)) then
+                    if victim:LastHitGroup() == HITGROUP_HEAD then
+                        wasHeadshot = 1
+                    end
+                end
+
                 if dmg:IsFallDamage() then
                     weaponClass = "fall"
                 elseif dmg:IsExplosionDamage() then
@@ -225,31 +255,17 @@ if SERVER then
             end
         end
 
-        local victimSteamID = "WORLD"
-        local victimNick = "WORLD"
-        local victimRoleName = "unknown"
-        local victimRoleTeam = "unknown"
-        if IsValid(victim) and victim:IsPlayer() and victim.GetSubRoleData then
-            victimSteamID = victim:SteamID64()
-            victimNick = victim:Nick()
-            local victimRoleData = victim:GetSubRoleData()
-            victimRole = victimRoleData and victimRoleData.name or "unknown"
-            if victimRole == "pirate_captain" then
-                if IsValid(victim.pirate_master) then
-                    victimTeam = victim.pirate_master:GetTeam() or "pirates"
-                else
-                    victimTeam = "pirates"
-                end
-            else
-                victimTeam = victimRoleData and victimRoleData.defaultTeam or "unknown"
-            end
-        end
+        -- local wasHeadshot = 0
+        -- if victim:LastHitGroup() == HITGROUP_HEAD then
+        --     wasHeadshot = 1
+        -- end
+        print("[ROUND LOGGER] Headshot:", wasHeadshot)
 
         if GetConVar("sc0b_roundlogging_debug"):GetBool() then
             print("[ROUND LOGGER KILL]")
             print(string.format([[
-            INSERT INTO round_kills (round_id, time, killer_steamid, killer_nick, killer_role, killer_team, victim_steamid, victim_nick, victim_role, victim_team, weapon)
-            VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            INSERT INTO round_kills (round_id, time, killer_steamid, killer_nick, killer_role, killer_team, victim_steamid, victim_nick, victim_role, victim_team, weapon, headshot)
+            VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d)
             ]],
             currentRoundID,
             os.time(),
@@ -261,7 +277,8 @@ if SERVER then
             victimNick,
             victimRole,
             victimTeam,
-            weaponClass
+            weaponClass,
+            wasHeadshot
             ))
             print("[/ROUND LOGGER KILL]")
         end
@@ -269,8 +286,8 @@ if SERVER then
         -- Insert into database
         print("[ROUND LOGGER] Logging kill:", killerNick, "->", victimNick, "with", weaponClass)
         local query = string.format([[
-            INSERT INTO round_kills (round_id, time, killer_steamid, killer_nick, killer_role, killer_team, victim_steamid, victim_nick, victim_role, victim_team, weapon)
-            VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            INSERT INTO round_kills (round_id, time, killer_steamid, killer_nick, killer_role, killer_team, victim_steamid, victim_nick, victim_role, victim_team, weapon, headshot)
+            VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d)
             ]],
             currentRoundID,
             os.time(),
@@ -282,7 +299,8 @@ if SERVER then
             victimNick,
             victimRole,
             victimTeam,
-            weaponClass
+            weaponClass,
+            wasHeadshot
         )
 
         local result = sql.Query(query)
