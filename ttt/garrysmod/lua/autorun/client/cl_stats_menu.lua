@@ -58,7 +58,7 @@ net.Receive("sc0b_SendStats", function()
 
     local reportHtml = vgui.Create("DHTML", reportPanel)
     reportHtml:Dock(FILL)
-    reportHtml:OpenURL("https://greatsea.online/static/pdf/TTT_Roles.pdf")
+    reportHtml:OpenURL("https://greatsea.online/ttt_guide/")
 
     tabs:AddSheet("TTT GUIDE", reportPanel, "icon16/report.png")
 end)
