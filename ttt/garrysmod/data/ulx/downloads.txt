@@ -29,10 +29,12 @@ lua/autorun/client/cl_stats_menu.lua
 lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
 maps/thumb
+maps/ttt_oxxo_redux.bsp
 maps/ttt_squidgame_facility.bsp
 maps/ttt_abandoned_mall_2025_v3.bsp
 materials/level_up.png
 materials/bl_mats
+materials/ranks
 materials/music/end_random_music
 materials/music/end_random_music/innocents
 materials/music/end_random_music/other

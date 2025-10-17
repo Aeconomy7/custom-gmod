@@ -1,9 +1,10 @@
 -- sv_rank_system.lua
 if not SERVER then return end
 
+util.AddNetworkString("sc0b_SendXP")
 util.AddNetworkString("sc0b_LevelUpPopup")
 util.AddNetworkString("sc0b_LevelUpPNG")
-
+util.AddNetworkString("sc0b_RoundXPGain")
 -- Create SQLite table for XP
 sql.Query([[
 CREATE TABLE IF NOT EXISTS player_xp (
@@ -59,7 +60,7 @@ local function AddXP(ply, amount)
     if newLevel > currentLevel then
         ply:EmitSound("maplestory_level_up.mp3", 100, 100)
         for _, v in ipairs(player.GetAll()) do
-            v:ChatPrint("[LEVEL UP] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
+            v:PrintMessage(HUD_PRINTTALK, "[GREATSEA] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
         end
 
         -- Glowing effect for 2 seconds
@@ -83,23 +84,73 @@ local function AddXP(ply, amount)
     end
 end
 
--- Example: award XP at end of round
 hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
+    -- Get the current round ID and winning team
+    local round_id = GetGlobalInt("sc0b_currentRoundID", 0)
+    if round_id == 0 then return end
+
+    -- Get the winning team from the DB
+    local roundRow = sql.QueryRow("SELECT winning_team FROM rounds WHERE round_id = " .. round_id)
+    local winning_team = roundRow and roundRow.winning_team or ""
+
     for _, ply in ipairs(player.GetAll()) do
         if not IsValid(ply) then continue end
 
-        local xpGain = 5 -- base XP
-        if ply:IsTraitor() and ply:Alive() then xpGain = xpGain + 10 end
-        if ply:IsDetective() and ply:Alive() then xpGain = xpGain + 10 end
-        if ply:IsActiveTraitor() and result == "traitors" then xpGain = xpGain + 5 end
-        if ply:IsActiveDetective() and result == "innocents" then xpGain = xpGain + 5 end
+        local steamid = ply:SteamID64()
+        local xpGain = 0
+        local reasons = {}
+
+        -- 1. Award 10 XP for each good kill
+        local kills = sql.Query([[
+            SELECT victim_role, killer_role
+            FROM round_kills
+            WHERE round_id = ]] .. round_id .. [[
+            AND killer_steamid = ']] .. steamid .. [['
+        ]]) or {}
+
+        local goodKills = 0
+        for _, kill in ipairs(kills) do
+            -- Define "good" kill logic:
+            -- Innocent/Detective kills Traitor, or Traitor kills Innocent/Detective
+            if (kill.killer_role == "traitor" and (kill.victim_role == "innocent" or kill.victim_role == "detective")) or
+               ((kill.killer_role == "innocent" or kill.killer_role == "detective") and kill.victim_role == "traitor") then
+                goodKills = goodKills + 1
+            end
+        end
+        if goodKills > 0 then
+            local killXP = goodKills * 10
+            xpGain = xpGain + killXP
+            table.insert(reasons, "Good Kills: " .. killXP)
+        end
+
+        -- 2. Award 25 XP for being on the winning team
+        local roleData = ply.GetSubRoleData and ply:GetSubRoleData()
+        local playerTeam = roleData and roleData.defaultTeam or ""
+        if playerTeam ~= "" and playerTeam == winning_team then
+            xpGain = xpGain + 25
+            table.insert(reasons, "Winning Team: 25")
+        end
+
+        -- 3. Award 10 XP for being alive at the end
+        if ply:Alive() then
+            xpGain = xpGain + 10
+            table.insert(reasons, "Survived: 10")
+        end
+
+        -- Send breakdown to client
+        net.Start("sc0b_RoundXPGain")
+        net.WriteInt(xpGain, 16)
+        net.WriteUInt(#reasons, 8)
+        for _, reason in ipairs(reasons) do
+            net.WriteString(reason)
+        end
+        net.Send(ply)
 
         AddXP(ply, xpGain)
     end
 end)
 
--- Send XP/level to client when requested
-util.AddNetworkString("sc0b_SendXP")
+
 concommand.Add("sc0b_request_xp", function(ply)
     local xp, total_xp, level  = GetPlayerXP(ply)
     net.Start("sc0b_SendXP")

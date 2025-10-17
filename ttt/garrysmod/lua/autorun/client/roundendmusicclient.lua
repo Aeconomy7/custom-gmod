@@ -141,11 +141,7 @@ net.Receive("ttt_end_random_music", function()
         pngPath = "sound/music/end_random_music/unknown_song.png"
     end
 
-    print("[RoundEndMusic DEBUG] Received net message:")
-    print("  chosenMusic: " .. tostring(chosenMusic))
-    print("  songName: " .. tostring(songName))
-    print("  band: " .. tostring(band))
-    print("  pngPath: " .. tostring(pngPath))
+    print("[RoundEndMusic] Playing: " .. tostring(songName) .. " by " .. tostring(band))
 
     musicInfo = {
         songName = songName,

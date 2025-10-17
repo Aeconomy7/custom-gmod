@@ -13,6 +13,8 @@ local function IsLoggingEnabled()
 end
 
 if SERVER then
+    print("[ROUND LOGGER] Status:", IsLoggingEnabled() and "ENABLED" or "DISABLED")
+
     -- Create tables if not exist
     sql.Query([[
         CREATE TABLE IF NOT EXISTS rounds (
@@ -68,6 +70,8 @@ if SERVER then
             print(string.format([[
                 INSERT INTO rounds (map_name, start_time) VALUES ('%s', %d)
             ]], game.GetMap(), os.time()))
+
+            SetGlobalInt("sc0b_currentRoundID", currentRoundID or 0)
 
             -- currentRoundID = sql.QueryValue("SELECT last_insert_rowid()")
             print("[/ROUND LOGGER START ROUND]")
@@ -165,6 +169,8 @@ if SERVER then
     hook.Add("TTT2PostPlayerDeath", "sc0b_LogKills", function(victim, inflictor, attacker)
         if not currentRoundID or not IsValid(victim) then return end
 
+        if not IsLoggingEnabled() then return end
+
         -- get killer info
         local killerSteamID = "world"
         local killerNick = "world"
@@ -188,8 +194,8 @@ if SERVER then
 
         
 
-        local victimSteamID = "WORLD"
-        local victimNick = "WORLD"
+        local victimSteamID = "world"
+        local victimNick = "world"
         local victimRoleName = "unknown"
         local victimRoleTeam = "unknown"
         if IsValid(victim) and victim:IsPlayer() and victim.GetSubRoleData then
@@ -209,38 +215,23 @@ if SERVER then
         end
 
         local weaponClass = "world"
-        local wasHeadshot = 0
-
-        -- get weapon / dmg info
         if IsValid(inflictor) then
             if inflictor:IsWeapon() then
-                -- Inflictor is the weapon
                 weaponClass = inflictor:GetClass()
             elseif inflictor:IsPlayer() then
-                -- Inflictor is a player, get their active weapon at time of kill
                 local wep = inflictor:GetActiveWeapon()
                 if IsValid(wep) then
                     weaponClass = wep:GetClass()
-                else
-                    weaponClass = "fists" -- fallback if player has no weapon
+                -- else
+                --     weaponClass = "fists"
                 end
             end
         else
-            -- Try to infer cause of death from damage info
-            local dmg = nil
-            if victim.LastDamageInfo then
-                dmg = victim:LastDamageInfo()
-            end
+            local dmg = victim.LastDamageInfo and victim:LastDamageInfo() or nil
             if GetConVar("sc0b_roundlogging_debug"):GetBool() then
                 print("[ROUND LOGGER] Dmg info:", dmg)
             end
             if dmg then
-                if (dmg:IsBulletDamage() or dmg:IsDamageType(DMG_CLUB)) then
-                    if victim:LastHitGroup() == HITGROUP_HEAD then
-                        wasHeadshot = 1
-                    end
-                end
-
                 if dmg:IsFallDamage() then
                     weaponClass = "fall"
                 elseif dmg:IsExplosionDamage() then
@@ -250,15 +241,14 @@ if SERVER then
                 elseif dmg:IsDamageType(DMG_BURN) then
                     weaponClass = "fire"
                 end
-            else
-                weaponClass = "world"
             end
         end
 
-        -- local wasHeadshot = 0
-        -- if victim:LastHitGroup() == HITGROUP_HEAD then
-        --     wasHeadshot = 1
-        -- end
+        local wasHeadshot = 0
+        if victim:LastHitGroup() == HITGROUP_HEAD then
+            wasHeadshot = 1
+        end
+
         print("[ROUND LOGGER] Headshot:", wasHeadshot)
 
         if GetConVar("sc0b_roundlogging_debug"):GetBool() then

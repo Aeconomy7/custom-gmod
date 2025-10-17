@@ -15,14 +15,35 @@ surface.CreateFont("Impact18", {
     extended = true
 })
 
+surface.CreateFont("Impact24", {
+    font = "Impact",
+    size = 24,
+    weight = 600,
+    antialias = true,
+    extended = true
+})
+
+surface.CreateFont("Impact32", {
+    font = "Impact",
+    size = 32,
+    weight = 600,
+    antialias = true,
+    extended = true
+})
+
+surface.CreateFont("Impact36", {
+    font = "Impact",
+    size = 36,
+    weight = 600,
+    antialias = true,
+    extended = true
+})
+
 -- Receive TTT stats
 net.Receive("sc0b_SendStats", function()
-    local stats = net.ReadTable()
-    local totalRounds = stats.total > 0 and stats.total or 1
-
     local frame = vgui.Create("DFrame")
-    frame:SetTitle("TRT TTT2 Stats")
-    frame:SetSize(1000, 800)
+    frame:SetTitle("Great Sea TTT2 Stats")
+    frame:SetSize(1200, 800)
     frame:Center()
     frame:MakePopup()
 
@@ -40,7 +61,7 @@ net.Receive("sc0b_SendStats", function()
     html:Dock(FILL)
     html:OpenURL("https://greatsea.online/player/" .. steamid)
 
-    tabs:AddSheet("Profile", profilePanel, "icon16/world.png")
+    tabs:AddSheet("My Profile", profilePanel, "icon16/user.png")
 
     -- Round Report tab
     local reportPanel = vgui.Create("DPanel", tabs)
@@ -58,7 +79,19 @@ net.Receive("sc0b_SendStats", function()
 
     local reportHtml = vgui.Create("DHTML", reportPanel)
     reportHtml:Dock(FILL)
+    reportHtml:OpenURL("https://greatsea.online/ttt_leaderboards/")
+
+    tabs:AddSheet("Leaderboards", reportPanel, "icon16/medal_gold_1.png")
+
+    -- Round Report tab
+    local reportPanel = vgui.Create("DPanel", tabs)
+    reportPanel:Dock(FILL)
+
+    local reportHtml = vgui.Create("DHTML", reportPanel)
+    reportHtml:Dock(FILL)
     reportHtml:OpenURL("https://greatsea.online/ttt_guide/")
 
-    tabs:AddSheet("TTT GUIDE", reportPanel, "icon16/report.png")
+    tabs:AddSheet("How to Play", reportPanel, "icon16/help.png")
 end)
+
+

@@ -27,14 +27,12 @@ local function GetMoveVector(mv)
 end
 
 hook.Add("SetupMove", "Multi Jump", function(ply, mv)
-	-- Let the engine handle movement from the ground
 	if ply:OnGround() then
 		ply:SetJumpLevel(0)
 
 		return
 	end	
 
-	-- Don't do anything if not jumping
 	if not mv:KeyPressed(IN_JUMP) then
 		return
 	end
@@ -55,18 +53,5 @@ hook.Add("SetupMove", "Multi Jump", function(ply, mv)
 
 	if SERVER then
 		ply:EmitSound("bl_sounds/jump.wav", 50, 100, 1, CHAN_AUTO)
-		-- local sprite = ents.Create("env_sprite")
-		-- if IsValid(sprite) then
-		-- 	sprite:SetKeyValue("model", "materials/bl_mats/smiley.vtf")
-		-- 	sprite:SetKeyValue("rendermode", "3")
-		-- 	-- sprite:SetKeyValue("scale", "0.5") -- Small size
-		-- 	-- Random color hue
-		-- 	local hue = math.random(0, 360)
-		-- 	local r, g, b = HSVToColor(hue, 1, 1).r, HSVToColor(hue, 1, 1).g, HSVToColor(hue, 1, 1).b
-		-- 	sprite:SetKeyValue("color", string.format("%d %d %d", r, g, b))
-		-- 	sprite:SetPos(ply:GetPos() + Vector(0,0,10))
-		-- 	sprite:Spawn()
-		-- 	sprite:Fire("Kill", "", 1) -- Remove after 1 second
-		-- end
 	end
 end)
