@@ -73,7 +73,6 @@ if SERVER then
 
             SetGlobalInt("sc0b_currentRoundID", currentRoundID or 0)
 
-            -- currentRoundID = sql.QueryValue("SELECT last_insert_rowid()")
             print("[/ROUND LOGGER START ROUND]")
         end
 

@@ -93,3 +93,9 @@ models/npc_link.vvd
 models/player_linkweapons.dx90.vtx
 models/link_viewarms.dx90.vtx
 models/npc_linkweapons.dx80.vtx
+models/animeworld/forest/zelda-totk.mdl
+models/animeworld/forest/zelda-totk.dx80.vtx
+models/animeworld/forest/zelda-totk.sw.vtx
+models/animeworld/forest/zelda-totk.phy
+models/animeworld/forest/zelda-totk.vvd
+models/animeworld/forest/zelda-totk.dx90.vtx

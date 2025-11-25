@@ -1,0 +1,318 @@
+-- sv_custom_achievements.lua
+if not SERVER then return end
+
+
+sql.Query([[
+CREATE TABLE IF NOT EXISTS all_achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    internal_id TEXT UNIQUE,                -- e.g. "junior_sharpshooter"
+    name TEXT,                              -- Pretty name, e.g. "Junior Sharpshooter"
+    description TEXT,                       -- e.g. "Get 50 headshots"
+    stat_type TEXT DEFAULT "none",          -- e.g. "headshots", "weapon", "special"; optional and not always required
+    weapon_type TEXT DEFAULT "none",        -- e.g. "weapon_zm_rifle", only for "weapon" stat_type
+    role_type TEXT DEFAULT "none",          -- e.g. "traitor", specifies a role 
+    stat_amount INTEGER DEFAULT 0,          -- e.g. 50
+    reward_xp INTEGER DEFAULT 0,
+    reward_ps2_points INTEGER DEFAULT 0,
+    reward_xp_multi REAL,
+    hidden_achievement INTEGER DEFAULT 0    -- if achievement should show in the UI
+)
+]])
+
+sql.Query([[
+CREATE TABLE IF NOT EXISTS player_achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    steamid TEXT,
+    achievement_id INTEGER,
+    earned_round INTEGER,
+    equipped INTEGER DEFAULT 0
+)
+]])
+
+if SERVER then
+
+    -- util.AddNetworkString("sc0b_AchievementEarned")
+
+    -- Achievement cache in memory
+    local Achievements = {}
+
+    -- Load achievements from SQL on startup
+    local function LoadAchievements()
+        local rows = sql.Query("SELECT * FROM all_achievements")
+        if rows and istable(rows) then
+            for _, row in ipairs(rows) do
+                Achievements[row.internal_id] = row
+            end
+        end
+    end
+
+    LoadAchievements()
+
+    ----------------------------------------------------------------------
+    -- GetPlayerKillCount
+    -- steamid    : player's SteamID64 (string)
+    -- weapon     : optional weapon filter (string or nil/"none")
+    -- stat_type  : nil | "headshot" | "good_kill" | "winning_kill"
+    -- role_type  : optional victim role filter (string or nil/"none")
+    ----------------------------------------------------------------------
+    local function GetPlayerKillCount(steamid, weapon, stat_type, role_type)
+        local base_where = [[
+            FROM round_kills k
+            JOIN rounds r ON r.round_id = k.round_id
+            WHERE r.test_round = 0
+            AND k.time BETWEEN r.start_time AND r.end_time
+        ]]
+
+        local extra_conditions = {}
+
+        -- always filter by killer_steamid for our player
+        table.insert(extra_conditions, "k.killer_steamid = '" .. steamid .. "'")
+
+        -- optional weapon filter
+        if weapon and weapon ~= "none" then
+            table.insert(extra_conditions, "k.weapon = '" .. weapon .. "'")
+        end
+
+        -- optional killer role filter
+        if role_type and role_type ~= "none" then
+            table.insert(extra_conditions, "k.killer_role = '" .. role_type .. "'")
+        end
+
+        -- Build query depending on stat_type
+        local query
+
+        if stat_type == "headshots" then
+            table.insert(extra_conditions, "k.headshot = 1")
+
+            query = "SELECT COUNT(*) AS kc " .. base_where
+            if #extra_conditions > 0 then
+                query = query .. " AND " .. table.concat(extra_conditions, " AND ")
+            end
+
+        elseif stat_type == "good_kills" then
+            -- replicate your good_kills CASE logic exactly
+            table.insert(extra_conditions, [[
+                k.killer_steamid != k.victim_steamid AND
+                (
+                    (k.killer_team != k.victim_team AND k.victim_team NOT IN ('jesters','pirates'))
+                    OR (k.victim_team = 'pirates' AND k.killer_team IN ('serialkillers','necromancers','traitors'))
+                )
+            ]])
+
+            query = "SELECT COUNT(*) AS kc " .. base_where
+            if #extra_conditions > 0 then
+                query = query .. " AND " .. table.concat(extra_conditions, " AND ")
+            end
+
+        -- elseif stat_type == "winning_kill" then
+        --     -- Correct per-round last winning-team kill logic:
+        --     -- For each round, find the LAST kill (max time) where killer_team = r.winning_team
+        --     -- Then count only if that kill's rowid belongs to our player (k.killer_steamid = steamid).
+        --     -- We use a correlated subquery to select that rowid per-round.
+        --     -- Note: we still only consider kills within r.start_time..r.end_time and r.test_round = 0
+        --     local winning_subquery = [[
+        --         SELECT k2.rowid
+        --         FROM round_kills k2
+        --         WHERE k2.round_id = r.round_id
+        --         AND k2.time BETWEEN r.start_time AND r.end_time
+        --         AND k2.killer_team = r.winning_team
+        --         ORDER BY k2.time DESC
+        --         LIMIT 1
+        --     ]]
+
+        --     -- Main query selects only those k which equal the per-round last winning-team rowid
+        --     query = "SELECT COUNT(*) AS kc " ..
+        --             base_where .. " AND k.rowid = (" .. winning_subquery .. ")"
+
+        --     -- We still want to ensure the killer_steamid is the one requested and optionally weapon/role filters
+        --     -- Add those to extra_conditions; killer_steamid is already included above
+        --     if #extra_conditions > 0 then
+        --         query = query .. " AND " .. table.concat(extra_conditions, " AND ")
+        --     end
+
+        else
+            -- generic/all kills (no special CASE)
+            query = "SELECT COUNT(*) AS kc " .. base_where
+            if #extra_conditions > 0 then
+                query = query .. " AND " .. table.concat(extra_conditions, " AND ")
+            end
+        end
+
+        -- We don't need ordering for COUNT queries, so omit ORDER BY
+        -- Execute and return count
+        print("[ACHIEVEMENTS] Query: " .. query)
+        local q = sql.QueryRow(query)
+        return q and tonumber(q.kc) or 0
+    end
+
+    ----------------------------------------------------------------------
+    -- Check if a player already has an achievement
+    ----------------------------------------------------------------------
+    local function PlayerHasAchievement(steamid, achievement_id)
+        local q = sql.QueryRow([[
+            SELECT id FROM player_achievements 
+            WHERE steamid = ']] .. steamid .. [['
+            AND achievement_id = ]] .. achievement_id .. [[
+        ]])
+
+        return q ~= nil
+    end
+
+    ----------------------------------------------------------------------
+    -- Grant achievement
+    ----------------------------------------------------------------------
+    local function GrantAchievement(ply, ach)
+        if not IsValid(ply) then return end
+
+        local row = sql.QueryRow("SELECT round_id FROM rounds ORDER BY round_id DESC LIMIT 1")
+        local currentRoundID = row and tonumber(row.round_id) or 0
+
+        sql.Query([[
+            INSERT OR IGNORE INTO player_achievements (steamid, achievement_id, earned_round)
+            VALUES (']] .. ply:SteamID64() .. [[', ]] .. ach.id .. [[, ]] .. currentRoundID .. [[)
+        ]])
+
+        -- Reward XP
+        if ach.reward_xp and tonumber(ach.reward_xp) > 0 then
+            -- sql.Query("UPDATE player_xp SET xp = xp + " .. ach.reward_xp .. " WHERE steamid = '" .. ply:SteamID64() .. "'")
+            AddXP(ply, ach.reward_xp)
+        end
+
+        -- Update EXP multiplier
+        local xp_multi = tonumber(ach.reward_xp_multi)
+        if xp_multi and xp_multi > 0 then
+            sql.Query("UPDATE player_xp SET exp_multi = exp_multi + " .. xp_multi .. " WHERE steamid = '" .. ply:SteamID64() .. "'")
+        end
+
+        -- Add Pointshop points
+        if ach.reward_ps2_points and tonumber(ach.reward_ps2_points) > 0 then
+            ply:PS2_AddStandardPoints(tonumber(ach.reward_ps2_points), "Completed achievement '" .. ach.name .. "'!")
+        end
+
+        -- Notify client, currently I am not doing this because it's a whole nother mess I don't need today
+        -- net.Start("sc0b_AchievementEarned")
+        -- net.WriteString(ach.name)
+        -- net.WriteInt(ach.reward_xp or 0, 32)
+        -- net.Send(ply)
+
+        for _, v in ipairs(player.GetAll()) do
+            v:PrintMessage(HUD_PRINTTALK, "[GREATSEA][ACHIEVEMENTS] " .. ply:Nick() .. " earned the achievement '" .. ach.name .. "'!")
+        end
+    end
+
+    -- GLOBAL / PUBLIC achievement granting helper
+    function sc0b_GrantAchievementByInternalID(ply, internal_id)
+        if not IsValid(ply) then return end
+        if not Achievements or not Achievements[internal_id] then return end
+
+        local ach = Achievements[internal_id]
+
+        -- Prevent duplicates
+        if PlayerHasAchievement(ply:SteamID64(), ach.id) then return end
+
+        print("[ACHIEVEMENTS] Granting " .. ply:Nick() .. " the achievement '" .. ach.name .. "'...")
+
+        GrantAchievement(ply, ach)
+    end
+
+    ----------------------------------------------------------------------
+    -- Check all achievements for a player
+    ----------------------------------------------------------------------
+    local function CheckPlayerAchievements(ply)
+        if not IsValid(ply) then return end
+        local sid = ply:SteamID64()
+
+        for _, ach in pairs(Achievements) do
+            local required = tonumber(ach.stat_amount) or 0
+
+            -- HEADSHOT ACHIEVEMENTS
+            if ach.stat_type == "headshots" then
+                local count = GetPlayerKillCount(sid, ach.weapon_type, ach.stat_type, ach.role_type)
+
+                print("[ACHIEVEMENTS] " .. ply:Nick() .. " has " .. count .. "/" .. required .. " HEADSHOT kills for weapon: " .. ach.weapon_type .. " | stat_type: " .. ach.stat_type .. " | role_type: " .. ach.role_type)
+
+                if count >= required and not PlayerHasAchievement(sid, ach.id) then
+                    GrantAchievement(ply, ach)
+                end
+
+            -- WEAPON-SPECIFIC KILL ACHIEVEMENTS
+            elseif ach.stat_type == "weapon" then
+                local count = GetPlayerKillCount(sid, ach.weapon_type, ach.stat_type, ach.role_type)
+
+                print("[ACHIEVEMENTS] " .. ply:Nick() .. " has " .. count .. "/" .. required .. " kills for weapon: " .. ach.weapon_type .. " | stat_type: " .. ach.stat_type .. " | role_type: " .. ach.role_type)
+
+                if count >= required and not PlayerHasAchievement(sid, ach.id) then
+                    GrantAchievement(ply, ach)
+                end
+
+
+            -- FUTURE STAT TYPES
+            elseif ach.stat_type == "special" then
+                -- Example:
+                -- special achievements will be triggered manually (below)
+                print("Handling special achievement")
+            end
+        end
+    end
+
+    ----------------------------------------------------------------------
+    -- Hook into end of TTT2 round
+    ----------------------------------------------------------------------
+    hook.Add("TTTEndRound", "sc0b_CheckAchievements", function(result)
+        timer.Simple(1.0, function() -- increment if buggy
+            for _, ply in ipairs(player.GetAll()) do
+                if IsValid(ply) and ply:SteamID64() then
+                    CheckPlayerAchievements(ply)
+                end
+            end
+        end)
+    end)
+
+
+    ----------------------------------------------------------------------
+    -- Title GUI and setting
+    ----------------------------------------------------------------------
+    util.AddNetworkString("sc0b_RequestTitles")
+    util.AddNetworkString("sc0b_SendTitles")
+    util.AddNetworkString("sc0b_EquipTitle")
+
+    -- Send all earned achievements to a player
+    net.Receive("sc0b_RequestTitles", function(len, ply)
+        local sid = ply:SteamID64()
+
+        local rows = sql.Query([[
+            SELECT pa.id AS player_ach_id,
+                   pa.equipped,
+                   a.id AS ach_id,
+                   a.name,
+                   a.internal_id,
+                   a.description
+            FROM player_achievements pa
+            JOIN all_achievements a ON a.id = pa.achievement_id
+            WHERE pa.steamid = ']] .. sid .. [['
+        ]])
+
+        net.Start("sc0b_SendTitles")
+        net.WriteTable(rows or {})
+        net.Send(ply)
+    end)
+
+    -- Equip an achievement title
+    net.Receive("sc0b_EquipTitle", function(len, ply)
+        local ach_id = net.ReadInt(32)
+        local sid = ply:SteamID64()
+
+        if not ach_id then return end
+
+        print("[ACHIEVEMENTS] Updating " .. sid .. "'s title to '" .. ach_id .. "'")
+
+        -- Unequip all titles
+        sql.Query("UPDATE player_achievements SET equipped = 0 WHERE steamid = '" .. sid .. "'")
+
+        -- Equip the chosen one
+        sql.Query("UPDATE player_achievements SET equipped = 1 WHERE steamid = '" .. sid .. "' AND achievement_id = " .. ach_id)
+
+        ply:ChatPrint("[GREATSEA] Updated equipped title!")
+    end)
+
+end

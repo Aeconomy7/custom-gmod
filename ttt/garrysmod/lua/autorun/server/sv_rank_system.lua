@@ -5,13 +5,14 @@ util.AddNetworkString("sc0b_SendXP")
 util.AddNetworkString("sc0b_LevelUpPopup")
 util.AddNetworkString("sc0b_LevelUpPNG")
 util.AddNetworkString("sc0b_RoundXPGain")
--- Create SQLite table for XP
+
 sql.Query([[
 CREATE TABLE IF NOT EXISTS player_xp (
     steamid TEXT PRIMARY KEY,
     xp INTEGER DEFAULT 0,
     total_xp INTEGER DEFAULT 0,
-    level INTEGER DEFAULT 1
+    level INTEGER DEFAULT 1,
+    exp_multi REAL DEFAULT 1.0
 )
 ]])
 
@@ -26,7 +27,7 @@ local function GetLevelFromTotalXP(total_xp)
         total_xp = total_xp - XPRequiredForLevel(level)
         level = level + 1
     end
-    return level, total_xp -- return level and XP into that level
+    return level, total_xp
 end
 
 -- Return: xp, level, total_xp
@@ -41,8 +42,10 @@ local function GetPlayerXP(ply)
     end
 end
 
-local function AddXP(ply, amount)
+function AddXP(ply, amount)
+
     local currentXP, currentTotalXP, currentLevel = GetPlayerXP(ply)
+    print("[EXPERIENCE] Adding " .. amount .. "XP to " .. ply:SteamID64() .. " | Current: " .. currentXP .. "XP | " .. currentTotalXP .. " Total XP"  )
 
     local newTotalXP = currentTotalXP + amount
     local newLevel, newXP = GetLevelFromTotalXP(newTotalXP)
@@ -60,7 +63,7 @@ local function AddXP(ply, amount)
     if newLevel > currentLevel then
         ply:EmitSound("maplestory_level_up.mp3", 100, 100)
         for _, v in ipairs(player.GetAll()) do
-            v:PrintMessage(HUD_PRINTTALK, "[GREATSEA] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
+            v:PrintMessage(HUD_PRINTTALK, "[GREATSEA][EXPERIENCE] " .. ply:Nick() .. " reached level " .. newLevel .. "!")
         end
 
         -- Glowing effect for 2 seconds
@@ -84,6 +87,23 @@ local function AddXP(ply, amount)
     end
 end
 
+local function getPlayerExpMulti(ply)
+    local row = sql.QueryRow(string.format("SELECT exp_multi FROM player_xp WHERE steamid = '%s'", ply:SteamID64()))
+    if not row or not row.exp_multi then return 1.0 end
+
+    local multi = tonumber(row.exp_multi)
+    if not multi then return 1.0 end
+
+    -- ensure it’s always at least 0.x or 1.x
+    if multi > 0 and multi < 1 then
+        return multi
+    elseif multi >= 1 then
+        return multi
+    else
+        return 1.0
+    end
+end
+
 hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
     -- Get the current round ID and winning team
     local round_id = GetGlobalInt("sc0b_currentRoundID", 0)
@@ -97,6 +117,10 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
         if not IsValid(ply) then continue end
 
         local steamid = ply:SteamID64()
+        local playerExpMulti = getPlayerExpMulti(ply)
+        local goodKillExpMulti = math.Round(10 * tonumber(playerExpMulti)) 
+        local winningTeamExpBonus = math.Round(25 * tonumber(playerExpMulti)) 
+        local survivalBonus = math.Round(10 * tonumber(playerExpMulti)) 
         local xpGain = 0
         local reasons = {}
 
@@ -110,31 +134,47 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
 
         local goodKills = 0
         for _, kill in ipairs(kills) do
-            -- Define "good" kill logic:
-            -- Innocent/Detective kills Traitor, or Traitor kills Innocent/Detective
-            if (kill.killer_role == "traitor" and (kill.victim_role == "innocent" or kill.victim_role == "detective")) or
-               ((kill.killer_role == "innocent" or kill.killer_role == "detective") and kill.victim_role == "traitor") then
-                goodKills = goodKills + 1
+            local killerTeam = kill.killer_team
+            local victimTeam = kill.victim_team
+
+            -- Skip self kills
+            if kill.killer_steamid == localSteamID and kill.killer_steamid ~= kill.victim_steamid then
+                
+                local isDifferentTeam = killerTeam ~= victimTeam
+                local victimNotJesterOrPirate = victimTeam ~= "jesters" and victimTeam ~= "pirates"
+
+                local victimIsPirate = victimTeam == "pirates"
+                local killerIsPirateHunter = 
+                    killerTeam == "serialkillers" or 
+                    killerTeam == "necromancers" or 
+                    killerTeam == "traitors"
+
+                -- Main logic
+                if (isDifferentTeam and victimNotJesterOrPirate) or
+                (victimIsPirate and killerIsPirateHunter) then
+                    goodKills = goodKills + 1
+                end
             end
         end
+
         if goodKills > 0 then
-            local killXP = goodKills * 10
+            local killXP = goodKills * goodKillExpMulti
             xpGain = xpGain + killXP
-            table.insert(reasons, "Good Kills: " .. killXP)
+            table.insert(reasons, "Good Kill Bonus: " .. killXP)
         end
 
         -- 2. Award 25 XP for being on the winning team
         local roleData = ply.GetSubRoleData and ply:GetSubRoleData()
         local playerTeam = roleData and roleData.defaultTeam or ""
         if playerTeam ~= "" and playerTeam == winning_team then
-            xpGain = xpGain + 25
-            table.insert(reasons, "Winning Team: 25")
+            xpGain = xpGain + winningTeamExpBonus 
+            table.insert(reasons, "Winning Team: " .. winningTeamExpBonus)
         end
 
         -- 3. Award 10 XP for being alive at the end
         if ply:Alive() then
-            xpGain = xpGain + 10
-            table.insert(reasons, "Survived: 10")
+            xpGain = xpGain + survivalBonus
+            table.insert(reasons, "Survived: " .. survivalBonus)
         end
 
         -- Send breakdown to client
