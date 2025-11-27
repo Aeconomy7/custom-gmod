@@ -149,6 +149,8 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
                     killerTeam == "necromancers" or 
                     killerTeam == "traitors"
 
+                print("[EXPERIENCE] Kill by " .. ply:Nick() .. ": Victim Team = " .. victimTeam .. ", Killer Team = " .. killerTeam)
+
                 -- Main logic
                 if (isDifferentTeam and victimNotJesterOrPirate) or
                 (victimIsPirate and killerIsPirateHunter) then
@@ -160,7 +162,7 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
         if goodKills > 0 then
             local killXP = goodKills * goodKillExpMulti
             xpGain = xpGain + killXP
-            table.insert(reasons, "Good Kill Bonus: " .. killXP)
+            table.insert(reasons, "Good Kills: " .. killXP)
         end
 
         -- 2. Award 25 XP for being on the winning team
