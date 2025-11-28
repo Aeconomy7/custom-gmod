@@ -89,10 +89,6 @@ if SERVER then
         if stat_type == "headshots" then
             table.insert(extra_conditions, "k.headshot = 1")
 
-            -- query = "SELECT COUNT(*) AS kc " .. base_where
-            -- if #extra_conditions > 0 then
-            --     query = query .. " AND " .. table.concat(extra_conditions, " AND ")
-            -- end
         elseif stat_type == "good_kills" then
             table.insert(extra_conditions, [[
                 k.killer_steamid != k.victim_steamid AND
@@ -101,10 +97,6 @@ if SERVER then
                     OR (k.victim_team = 'pirates' AND k.killer_team IN ('serialkillers','necromancers','traitors'))
                 )
             ]])
-            -- query = "SELECT COUNT(*) AS kc " .. base_where
-            -- if #extra_conditions > 0 then
-            --     query = query .. " AND " .. table.concat(extra_conditions, " AND ")
-            -- end
         end
 
         -- generic/all kills (no special CASE)
@@ -147,6 +139,10 @@ if SERVER then
         -- optional team filter
         if team_type and team_type ~= "none" then
             table.insert(extra_conditions, "rp.team = '" .. team_type .. "' AND r.winning_team = rp.team")
+        end
+
+        if not (role_type and role_type ~= "none") and not (team_type and team_type ~= "none") then
+            table.insert(extra_conditions, "r.winning_team = rp.team")
         end
 
         -- Build query depending on stat_type
@@ -206,12 +202,6 @@ if SERVER then
             ply:PS2_AddStandardPoints(tonumber(ach.reward_ps2_points), "Completed achievement '" .. ach.name .. "'!")
         end
 
-        -- Notify client, currently I am not doing this because it's a whole nother mess I don't need today
-        -- net.Start("sc0b_AchievementEarned")
-        -- net.WriteString(ach.name)
-        -- net.WriteInt(ach.reward_xp or 0, 32)
-        -- net.Send(ply)
-
         for _, v in ipairs(player.GetAll()) do
             v:PrintMessage(HUD_PRINTTALK, "[GREATSEA][ACHIEVEMENTS] " .. ply:Nick() .. " earned the achievement '" .. ach.name .. "'!")
         end
@@ -263,11 +253,8 @@ if SERVER then
 
             -- FUTURE STAT TYPES
             elseif ach.stat_type == "special" then
-                -- Example:
-                -- special achievements will be triggered manually (below)
                 print("Handling special achievement")
 
-                -- ACHIEVEMENT: 
             end
         end
     end
@@ -285,6 +272,47 @@ if SERVER then
         end)
     end)
 
+
+    ----------------------------------------------------------------------
+    -- Handle some special achievements that are not stat based
+    ----------------------------------------------------------------------
+    hook.Add("PlayerSay", "secret_sc00by_1", function(ply, text, teamChat)
+        if not IsValid(ply) then return "" end
+        if not text or text == "" then return "" end
+
+        print("[ACHIEVEMENTS] PlayerSay detected: " .. ply:Nick() .. " said: " .. text)
+
+        local lowerText = string.lower(text)
+        local REQUIRED_WORDS = {"sick", "headshot", "m8"} -- fixed typo
+
+        for _, word in ipairs(REQUIRED_WORDS) do
+            if not string.find(lowerText, word, 1, true) then
+                return text
+            end
+        end
+
+        sc0b_GrantAchievementByInternalID(ply, "secret_sc00by_1")
+
+        return text
+    end)
+
+    -- hook.Add("PlayerSay", "secret_jfkdown_1", function(ply, text, teamChat)
+    --     if not IsValid(ply) then return end
+    --     if not text or text == "" then return end
+
+    --     local lowerText = string.lower(text)
+    --     local REQUIRED_WORDS = {"reach", "in", "pocket"}
+
+    --     for _, word in ipairs(REQUIRED_WORDS) do
+    --         if not string.find(lowerText, word, 1, true) then
+    --             return text
+    --         end
+    --     end
+
+    --     sc0b_GrantAchievementByInternalID(ply, "secret_jfkdown_1")
+
+    --     return text
+    -- end)
 
     ----------------------------------------------------------------------
     -- Title GUI and setting

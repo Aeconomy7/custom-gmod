@@ -6,6 +6,8 @@
 ;sound/cheeseman.mp3 <-- Adds the file 'cheeseman.mp3' under the sound folder
 ;sound/my_music <-- Adds all files within the my_music folder, inside the sound folder
 
+
+gamemodes/terrortown/logo.png
 sound/music/end_random_music/innocents
 sound/music/end_random_music/other
 sound/music/end_random_music/traitors
@@ -26,6 +28,7 @@ lua/autorun/client/roundendmusicclient.lua
 lua/autorun/client/cl_join_sound.lua
 lua/autorun/client/cl_multi_jump.lua
 lua/autorun/client/cl_stats_menu.lua
+lua/autorun/client/cl_custom_scoreboard.lua
 lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
 maps/thumb
