@@ -63,6 +63,16 @@ net.Receive("sc0b_SendStats", function()
 
     tabs:AddSheet("My Profile", profilePanel, "icon16/user.png")
 
+    -- How to play tab
+    local reportPanel = vgui.Create("DPanel", tabs)
+    reportPanel:Dock(FILL)
+
+    local reportHtml = vgui.Create("DHTML", reportPanel)
+    reportHtml:Dock(FILL)
+    reportHtml:OpenURL("https://greatsea.online/ttt_guide/")
+
+    tabs:AddSheet("How to Play", reportPanel, "icon16/help.png")
+
     -- Round Report tab
     local reportPanel = vgui.Create("DPanel", tabs)
     reportPanel:Dock(FILL)
@@ -73,7 +83,7 @@ net.Receive("sc0b_SendStats", function()
 
     tabs:AddSheet("Round Report", reportPanel, "icon16/report.png")
 
-    -- Round Report tab
+    -- Leaderboards tab
     local reportPanel = vgui.Create("DPanel", tabs)
     reportPanel:Dock(FILL)
 
@@ -83,15 +93,15 @@ net.Receive("sc0b_SendStats", function()
 
     tabs:AddSheet("Leaderboards", reportPanel, "icon16/medal_gold_1.png")
 
-    -- Round Report tab
+    -- Achievements tab
     local reportPanel = vgui.Create("DPanel", tabs)
     reportPanel:Dock(FILL)
 
     local reportHtml = vgui.Create("DHTML", reportPanel)
     reportHtml:Dock(FILL)
-    reportHtml:OpenURL("https://greatsea.online/ttt_guide/")
+    reportHtml:OpenURL("https://greatsea.online/ttt_achievements/")
 
-    tabs:AddSheet("How to Play", reportPanel, "icon16/help.png")
+    tabs:AddSheet("Achievements", reportPanel, "icon16/award_star_gold_1.png")
 end)
 
 

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS all_achievements (
     reward_xp INTEGER DEFAULT 0,
     reward_ps2_points INTEGER DEFAULT 0,
     reward_xp_multi REAL DEFAULT 0.0,
+    reward_extra TEXT DEFAULT 'none',       -- e.g. "Custom Skin of Player's Choice", "Hacker Skin" - which you can get by typing in 'OSINTRULES' in-game chat
     hidden_achievement INTEGER DEFAULT 0    -- if achievement should show in the UI
 )
 ]])
@@ -68,6 +69,7 @@ if SERVER then
             JOIN rounds r ON r.round_id = k.round_id
             WHERE r.test_round = 0
             AND k.time BETWEEN r.start_time AND r.end_time
+            AND k.killer_steamid != k.victim_steamid
         ]]
 
         local extra_conditions = {}
@@ -105,7 +107,7 @@ if SERVER then
             query = query .. " AND " .. table.concat(extra_conditions, " AND ")
         end
 
-        print("[ACHIEVEMENTS] Query: " .. query)
+        -- print("[ACHIEVEMENTS] Query: " .. query)
         local q = sql.QueryRow(query)
         return q and tonumber(q.kc) or 0
     end
@@ -153,9 +155,23 @@ if SERVER then
             query = query .. " AND " .. table.concat(extra_conditions, " AND ")
         end
 
-        print("[ACHIEVEMENTS] Query: " .. query)
+        -- print("[ACHIEVEMENTS] Query: " .. query)
         local q = sql.QueryRow(query)
         return q and tonumber(q.wins) or 0
+    end
+
+
+    function GetRoundsPlayed(steamid)
+        local q = sql.QueryValue([[
+            SELECT COUNT(DISTINCT rp.round_id)
+            FROM round_players rp
+            JOIN rounds r ON r.round_id = rp.round_id
+            WHERE rp.steamid = ]] .. sql.SQLStr(steamid) .. [[
+            AND rp.team NOT IN ('none', 'nones')
+            AND r.test_round = 0;
+        ]])
+
+        return tonumber(q) or 0
     end
 
 
@@ -200,6 +216,20 @@ if SERVER then
         -- Add Pointshop points
         if ach.reward_ps2_points and tonumber(ach.reward_ps2_points) > 0 then
             ply:PS2_AddStandardPoints(tonumber(ach.reward_ps2_points), "Completed achievement '" .. ach.name .. "'!")
+        end
+
+        -- Unlock reward_extra (e.g. Hacker playermodel)
+        if ach.reward_extra and ach.reward_extra ~= "none" then
+            if ach.reward_extra == "Custom Skin" then
+                print("[GREATSEA][ACHIEVEMENTS] Custom skin earned")
+            else
+                local item_class = Pointshop2.GetItemClassByPrintName(ach.reward_extra)
+                if not item_class then
+                    error("[GREATSEA][ACHIEVEMENTS] ERROR invalid item : " .. ach.reward_extra)
+                else
+                    ply:PS2_EasyAddItem(item_class.className)
+                end
+            end
         end
 
         for _, v in ipairs(player.GetAll()) do
@@ -251,10 +281,18 @@ if SERVER then
                     GrantAchievement(ply, ach)
                 end
 
+            elseif ach.stat_type == "rounds_played" then
+                local count = GetRoundsPlayed(sid)
+
+                print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required)
+
+                if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
+                    GrantAchievement(ply, ach)
+                end
+
             -- FUTURE STAT TYPES
             elseif ach.stat_type == "special" then
-                print("Handling special achievement")
-
+                print("[ACHIEVEMENTS] Handling special achievement!")
             end
         end
     end
@@ -280,7 +318,7 @@ if SERVER then
         if not IsValid(ply) then return "" end
         if not text or text == "" then return "" end
 
-        print("[ACHIEVEMENTS] PlayerSay detected: " .. ply:Nick() .. " said: " .. text)
+        -- print("[ACHIEVEMENTS] PlayerSay detected: " .. ply:Nick() .. " said: " .. text) 
 
         local lowerText = string.lower(text)
         local REQUIRED_WORDS = {"sick", "headshot", "m8"} -- fixed typo
