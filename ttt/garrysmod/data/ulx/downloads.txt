@@ -34,10 +34,10 @@ lua/autorun/playerzsssamusu.lua
 lua/autorun/playeryukilink.lua
 maps/thumb
 maps/ttt_oxxo_redux.bsp
-maps/ttt_squidgame_facility.bsp
-maps/ttt_abandoned_mall_2025_v3.bsp
-maps/ttt_cityblock.bsp
-maps/ttt_home_alone_1990.bsp
+;maps/ttt_squidgame_facility.bsp
+;maps/ttt_abandoned_mall_2025_v3.bsp
+;maps/ttt_cityblock.bsp
+;maps/ttt_home_alone_1990.bsp
 materials/level_up.png
 materials/bl_mats
 materials/ranks

@@ -41,7 +41,8 @@ end
 
 hook.Add("HUDPaint", "DrawSc0bHud", function()
     local ply = LocalPlayer()
-    if not IsValid(ply) or not ply:Alive() then return end
+    -- if not IsValid(ply) or not ply:Alive() then return end
+    if not IsValid(ply) then return end
     if not GAMEMODE or not GAMEMODE.round_state or GAMEMODE.round_state == ROUND_WAIT then return end
 
     local screenW, screenH = ScrW(), ScrH()

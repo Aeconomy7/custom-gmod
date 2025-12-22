@@ -27,31 +27,37 @@ local function GetMoveVector(mv)
 end
 
 hook.Add("SetupMove", "Multi Jump", function(ply, mv)
-	if ply:OnGround() then
-		ply:SetJumpLevel(0)
+    if ply.JumpLock then
+        if ply:OnGround() then
+			print("[JumpLock] released JumpLock on " .. ply:Nick() .. "")
+            ply:SetJumpLevel(0)
+            ply.JumpLock = nil
+        end
+        return
+    end
 
-		return
-	end	
+    if ply:OnGround() then
+        ply:SetJumpLevel(0)
+        return
+    end
 
-	if not mv:KeyPressed(IN_JUMP) then
-		return
-	end
+    if not mv:KeyPressed(IN_JUMP) then
+        return
+    end
 
-	ply:SetJumpLevel(ply:GetJumpLevel() + 1)
+    ply:SetJumpLevel(ply:GetJumpLevel() + 1)
 
-	if ply:GetJumpLevel() > ply:GetMaxJumpLevel() then
-		return
-	end
+    if ply:GetJumpLevel() > ply:GetMaxJumpLevel() then
+        return
+    end
 
-	local vel = GetMoveVector(mv)
+    local vel = GetMoveVector(mv)
+    vel.z = ply:GetJumpPower() * ply:GetExtraJumpPower()
+    mv:SetVelocity(vel)
 
-	vel.z = ply:GetJumpPower() * ply:GetExtraJumpPower()
+    ply:DoCustomAnimEvent(PLAYERANIMEVENT_JUMP , -1)
 
-	mv:SetVelocity(vel)
-
-	ply:DoCustomAnimEvent(PLAYERANIMEVENT_JUMP , -1)
-
-	if SERVER then
-		ply:EmitSound("bl_sounds/jump.wav", 50, 100, 1, CHAN_AUTO)
-	end
+    if SERVER then
+        ply:EmitSound("bl_sounds/jump.wav", 50, 100, 1, CHAN_AUTO)
+    end
 end)

@@ -266,7 +266,8 @@ if SERVER then
             if ach.stat_type == "headshots" or ach.stat_type == "kills" or ach.stat_type == "good_kills" then
                 local count = GetPlayerKillCount(sid, ach.weapon_type, ach.stat_type, ach.role_type, ach.team_type, ach.victim_role_type, ach.victim_team_type)
 
-                print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (weapon: " .. ach.weapon_type .. " | stat_type: " .. ach.stat_type .. " | killer_role_type: " .. ach.role_type .. " | killer_team_type: " .. ach.team_type .. " | victim_role_type: " .. ach.victim_role_type .. " | victim_team_type: " .. ach.victim_team_type .. ")")
+                -- DEBUG
+                -- print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (weapon: " .. ach.weapon_type .. " | stat_type: " .. ach.stat_type .. " | killer_role_type: " .. ach.role_type .. " | killer_team_type: " .. ach.team_type .. " | victim_role_type: " .. ach.victim_role_type .. " | victim_team_type: " .. ach.victim_team_type .. ")")
 
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)
@@ -275,7 +276,8 @@ if SERVER then
             elseif ach.stat_type == "rounds" then
                 local count = GetRoundWinCount(sid, ach.role_type, ach.team_type)
 
-                print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (role_type: " .. ach.role_type .. " | team_type: " .. ach.team_type .. ")")
+                -- DEBUG
+                -- print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (role_type: " .. ach.role_type .. " | team_type: " .. ach.team_type .. ")")
 
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)
@@ -284,7 +286,8 @@ if SERVER then
             elseif ach.stat_type == "rounds_played" then
                 local count = GetRoundsPlayed(sid)
 
-                print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required)
+                -- DEBUG
+                -- print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required)
 
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)
@@ -312,45 +315,39 @@ if SERVER then
 
 
     ----------------------------------------------------------------------
-    -- Handle some special achievements that are not stat based
+    -- Handle chat-triggered achievements
     ----------------------------------------------------------------------
-    hook.Add("PlayerSay", "secret_sc00by_1", function(ply, text, teamChat)
+    hook.Add("PlayerSay", "test_chat_for_achievement", function(ply, text, teamChat)
         if not IsValid(ply) then return "" end
         if not text or text == "" then return "" end
 
-        -- print("[ACHIEVEMENTS] PlayerSay detected: " .. ply:Nick() .. " said: " .. text) 
-
         local lowerText = string.lower(text)
-        local REQUIRED_WORDS = {"sick", "headshot", "m8"} -- fixed typo
+        local REQUIRED_WORDS = {
+            secret_sc00by_1 = {"sick", "headshot", "m8"},
+            secret_jfkdown_1 = {"reach", "in", "pocket"}
+        }
 
-        for _, word in ipairs(REQUIRED_WORDS) do
-            if not string.find(lowerText, word, 1, true) then
-                return text
+        -- Loop through achievements
+        for achievement_id, words in pairs(REQUIRED_WORDS) do
+            
+            local all_found = true
+
+            -- Require *all* words for THIS achievement
+            for _, word in ipairs(words) do
+                if not string.find(lowerText, word, 1, true) then
+                    all_found = false
+                    break
+                end
+            end
+
+            -- If all words matched, grant achievement
+            if all_found then
+                sc0b_GrantAchievementByInternalID(ply, achievement_id)
             end
         end
 
-        sc0b_GrantAchievementByInternalID(ply, "secret_sc00by_1")
-
         return text
     end)
-
-    -- hook.Add("PlayerSay", "secret_jfkdown_1", function(ply, text, teamChat)
-    --     if not IsValid(ply) then return end
-    --     if not text or text == "" then return end
-
-    --     local lowerText = string.lower(text)
-    --     local REQUIRED_WORDS = {"reach", "in", "pocket"}
-
-    --     for _, word in ipairs(REQUIRED_WORDS) do
-    --         if not string.find(lowerText, word, 1, true) then
-    --             return text
-    --         end
-    --     end
-
-    --     sc0b_GrantAchievementByInternalID(ply, "secret_jfkdown_1")
-
-    --     return text
-    -- end)
 
     ----------------------------------------------------------------------
     -- Title GUI and setting
