@@ -125,41 +125,71 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
         local reasons = {}
 
         -- 1. Award 10 XP for each good kill
+        -- local kills = sql.Query([[
+        --     SELECT victim_role, killer_role
+        --     FROM round_kills
+        --     WHERE round_id = ]] .. round_id .. [[
+        --     AND killer_steamid = ']] .. steamid .. [['
+        -- ]]) or {}
+
+        -- local goodKills = 0
+        -- for _, kill in ipairs(kills) do
+        --     local killerTeam = kill.killer_team
+        --     local victimTeam = kill.victim_team
+
+        --     -- Skip self kills
+        --     if kill.killer_steamid == localSteamID and kill.killer_steamid ~= kill.victim_steamid then
+                
+        --         local isDifferentTeam = killerTeam ~= victimTeam
+        --         local victimNotJesterOrPirate = victimTeam ~= "jesters" and victimTeam ~= "pirates"
+
+        --         local victimIsPirate = victimTeam == "pirates"
+        --         local killerIsPirateHunter = 
+        --             killerTeam == "serialkillers" or 
+        --             killerTeam == "necromancers" or 
+        --             killerTeam == "traitors"
+
+        --         print("[EXPERIENCE] Kill by " .. ply:Nick() .. ": Victim Team = " .. victimTeam .. ", Killer Team = " .. killerTeam)
+
+        --         -- Main logic
+        --         if (isDifferentTeam and victimNotJesterOrPirate) or
+        --         (victimIsPirate and killerIsPirateHunter) then
+        --             goodKills = goodKills + 1
+        --         end
+        --     end
+        -- end
+
         local kills = sql.Query([[
-            SELECT victim_role, killer_role
+            SELECT killer_steamid, victim_steamid, killer_team, victim_team
             FROM round_kills
             WHERE round_id = ]] .. round_id .. [[
             AND killer_steamid = ']] .. steamid .. [['
         ]]) or {}
 
         local goodKills = 0
+
         for _, kill in ipairs(kills) do
-            local killerTeam = kill.killer_team
-            local victimTeam = kill.victim_team
+            local killerTeam = string.lower(kill.killer_team or "nones")
+            local victimTeam = string.lower(kill.victim_team or "nones")
 
-            -- Skip self kills
-            if kill.killer_steamid == localSteamID and kill.killer_steamid ~= kill.victim_steamid then
-                
-                local isDifferentTeam = killerTeam ~= victimTeam
-                local victimNotJesterOrPirate = victimTeam ~= "jesters" and victimTeam ~= "pirates"
+            -- No self-kills
+            if kill.killer_steamid == kill.victim_steamid then continue end
 
-                local victimIsPirate = victimTeam == "pirates"
-                local killerIsPirateHunter = 
-                    killerTeam == "serialkillers" or 
-                    killerTeam == "necromancers" or 
-                    killerTeam == "traitors"
+            -- logic
+            -- Nones = never good kill
+            -- jesters = never good kill
+            -- necromancer not good kill on zombies and vice versa
+            -- pirate captain killing anyone as team pirates
+            if victimTeam == "nones" or victimTeam == "jesters" or (killerTeam == "innocents" and victimTeam == "pirates") or killerTeam == "pirates" then continue end
 
-                print("[EXPERIENCE] Kill by " .. ply:Nick() .. ": Victim Team = " .. victimTeam .. ", Killer Team = " .. killerTeam)
-
-                -- Main logic
-                if (isDifferentTeam and victimNotJesterOrPirate) or
-                (victimIsPirate and killerIsPirateHunter) then
-                    goodKills = goodKills + 1
-                end
+            -- Count as good kill if roles differ
+            if killerTeam ~= victimTeam then
+                goodKills = goodKills + 1
             end
         end
 
         if goodKills > 0 then
+            print("[EXPERIENCE] Good Kills for '" .. ply:Nick() .. "' = " .. goodKills)
             local killXP = goodKills * goodKillExpMulti
             xpGain = xpGain + killXP
             table.insert(reasons, "Good Kills: " .. killXP)

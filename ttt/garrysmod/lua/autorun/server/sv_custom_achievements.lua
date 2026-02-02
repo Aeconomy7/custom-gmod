@@ -8,12 +8,13 @@ CREATE TABLE IF NOT EXISTS all_achievements (
     internal_id TEXT UNIQUE,                -- e.g. "junior_sharpshooter"
     name TEXT,                              -- Pretty name, e.g. "Junior Sharpshooter"
     description TEXT,                       -- e.g. "Get 50 headshots"
-    stat_type TEXT DEFAULT 'none',          -- e.g. "rounds", "roles", "headshots", "kills", "good_kills, "special" - default to special if not stat based (IE chat message check, etc)
+    stat_type TEXT DEFAULT 'none',          -- e.g. "rounds", "roles", "headshots", "kills", "good_kills, "special", "map_wins" - default to special if not stat based (IE chat message check, etc)
     weapon_type TEXT DEFAULT 'none',        -- e.g. "weapon_zm_rifle" - only needed if applicable to the achievement (IE 10 AWP kills)
     role_type TEXT DEFAULT 'none',          -- e.g. "traitor", specifies a role 
     team_type TEXT DEFAULT 'none',          -- e.g. "traitors", specifies a team
     victim_role_type TEXT DEFAULT 'none',   -- e.g. "innocent", specifies a victim role for kills
     victim_team_type TEXT DEFAULT 'none',   -- e.g. "innocents", specifies a victim team for kills
+    map TEXT DEFAULT 'none',                -- e.g. "ttt_halls", specifies a map to have round wins on
     stat_amount INTEGER DEFAULT 0,          -- e.g. 50
     reward_xp INTEGER DEFAULT 0,
     reward_ps2_points INTEGER DEFAULT 0,
@@ -117,9 +118,10 @@ if SERVER then
     -- GetRoundWinCount
     -- steamid    : player's SteamID64 (string)
     -- role_type  : optional role filter (string or nil/"none")
-    -- team_type  : optional role filter (string or nil/"none")
+    -- team_type  : optional team filter (string or nil/"none")
+    -- map_name   : optional map filter (string or nil/"none")
     ----------------------------------------------------------------------
-    local function GetRoundWinCount(steamid, role_type, team_type)
+    local function GetRoundWinCount(steamid, role_type, team_type, map_name)
         local base_where = [[
             FROM rounds r
             JOIN round_players rp ON rp.round_id = r.round_id
@@ -130,27 +132,32 @@ if SERVER then
 
         local extra_conditions = {}
 
-        -- always filter by killer_steamid for our player
+        -- always filter by player
         table.insert(extra_conditions, "rp.steamid = '" .. steamid .. "'")
 
         -- optional role filter
         if role_type and role_type ~= "none" then
-            table.insert(extra_conditions, "rp.role = '" .. role_type .. "' AND r.winning_team = rp.team")
+            table.insert(extra_conditions, "rp.role = '" .. role_type .. "'")
+            table.insert(extra_conditions, "r.winning_team = rp.team")
         end
 
         -- optional team filter
         if team_type and team_type ~= "none" then
-            table.insert(extra_conditions, "rp.team = '" .. team_type .. "' AND r.winning_team = rp.team")
+            table.insert(extra_conditions, "rp.team = '" .. team_type .. "'")
+            table.insert(extra_conditions, "r.winning_team = rp.team")
         end
 
+        -- optional map filter
+        if map_name and map_name ~= "none" then
+            table.insert(extra_conditions, "r.map = '" .. map_name .. "'")
+        end
+
+        -- default win condition if no role/team filter
         if not (role_type and role_type ~= "none") and not (team_type and team_type ~= "none") then
             table.insert(extra_conditions, "r.winning_team = rp.team")
         end
 
-        -- Build query depending on stat_type
-        local query
-
-        query = "SELECT COUNT(*) AS wins " .. base_where
+        local query = "SELECT COUNT(*) AS wins " .. base_where
         if #extra_conditions > 0 then
             query = query .. " AND " .. table.concat(extra_conditions, " AND ")
         end
@@ -292,10 +299,17 @@ if SERVER then
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)
                 end
+            
+            elseif ach.stat_type == "map_wins" then
+                local count = GetRoundWinCount(sid, nil, nil, ach.map)
+
+                if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
+                    GrantAchievement(ply, ach)
+                end
 
             -- FUTURE STAT TYPES
-            elseif ach.stat_type == "special" then
-                print("[ACHIEVEMENTS] Handling special achievement!")
+            -- elseif ach.stat_type == "special" then
+            --     print("[ACHIEVEMENTS] Handling special achievement!")
             end
         end
     end
@@ -324,7 +338,8 @@ if SERVER then
         local lowerText = string.lower(text)
         local REQUIRED_WORDS = {
             secret_sc00by_1 = {"sick", "headshot", "m8"},
-            secret_jfkdown_1 = {"reach", "in", "pocket"}
+            secret_jfkdown_1 = {"reach", "in", "pocket"},
+            secret_gz_1 = {"gz"}
         }
 
         -- Loop through achievements

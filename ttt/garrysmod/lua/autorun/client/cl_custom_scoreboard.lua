@@ -32,6 +32,7 @@ local GS_TitleColors = {
     ["survival"]      = Color(102, 255, 102),
     ["damage"]        = Color(255, 111, 145),
     ["rounds_played"] = Color(2, 166, 207),
+    ["map_wins"]      = Color(183,	84,	241),
 
     -- Innocents
     ["innocent"]      = Color(5, 214, 12),
