@@ -39,7 +39,8 @@ if SERVER then
             world_damage_fire INTEGER DEFAULT 0,
             world_damage_drown INTEGER DEFAULT 0,
             world_damage_vehicle INTEGER DEFAULT 0,
-            world_damage_world INTEGER DEFAULT 0
+            world_damage_world INTEGER DEFAULT 0,
+            round_type TEXT DEFAULT 'normal'
         )
     ]])
 
@@ -341,7 +342,7 @@ if SERVER then
 
         local attacker  = dmginfo:GetAttacker()
         local inflictor = dmginfo:GetInflictor()
-        local dmg       = math.floor(math.min(dmginfo:GetDamage(), IsValid(ent) and ent:Health() or dmginfo:GetDamage()) + 0.5)
+        local dmg       = math.floor(math.min(dmginfo:GetDamage(), IsValid(ent) and ent:Health() or dmginfo:GetDamage()))
 
         if dmg <= 0 then return end
 
@@ -349,6 +350,24 @@ if SERVER then
         -- Player vs Player damage
         -- ----------------------
         if IsValid(ent) and ent:IsPlayer() and IsValid(attacker) and attacker:IsPlayer() and attacker ~= ent then
+            -- Skip Detective <-> Defective damage
+            if attacker.GetSubRoleData and ent.GetSubRoleData then
+                local aRole = attacker:GetSubRoleData()
+                local vRole = ent:GetSubRoleData()
+
+                if aRole and vRole then
+                    local aName = aRole.name
+                    local vName = vRole.name
+
+                    if (aName == "defective" and vName == "detective")
+                    or (aName == "detective" and vName == "defective") 
+                    or aName == "marker"
+                    or aName == "jester" then
+                        return
+                    end
+                end
+            end
+            
             attacker.sc0b_damage_dealt = (attacker.sc0b_damage_dealt or 0) + dmg
 
             if GetConVar("sc0b_roundlogging_debug"):GetBool() then

@@ -139,7 +139,7 @@ local function IsInKillTeam(ply)
 		local roleTeam = roleData and roleData.defaultTeam or "unknown" -- gives ROLE_TEAM_*
 		
 		print("[GDEAGLE] roleData: " .. roleName .. " : " .. roleTeam)
-		return roleTeam == TEAM_TRAITOR and roleName != ROLE_DEFECTIVE;
+		return roleTeam == TEAM_TRAITOR and roleName != "defective"
 	else
 		return IsTraitorRole(ply:GetRole())
 	end

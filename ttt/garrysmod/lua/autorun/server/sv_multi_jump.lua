@@ -1,5 +1,6 @@
 local default_jumps = CreateConVar("multijump_default_jumps", "1", FCVAR_ARCHIVE, "The amount of extra jumps players should get (requires restart)")
 local default_power = CreateConVar("multijump_default_power", "1", FCVAR_ARCHIVE, "Multiplier for the jump-power when multi jumping (requires restart)")
+CreateConVar("multijump_screw_jumps", "6", FCVAR_ARCHIVE, "Max jump level during Screw Jump special round mode")
 
 hook.Add("OnEntityCreated", "Multi Jump", function(ply)
 	if ply:IsPlayer() then

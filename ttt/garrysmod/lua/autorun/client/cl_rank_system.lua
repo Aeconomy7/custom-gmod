@@ -48,15 +48,12 @@ end)
 
 local rankCache = {}
 
-local function GetRankMaterial(level)
-    local idx
-    if level == 1 then
-        idx = 0
-    else
-        idx = math.floor((level - 1) / 2) * 2
-    end
+local RANK_MAX   = 55
+local RANK_CLASS = "thief"  -- future: warrior / archer / magician / thief / pirate
 
-    local path = "ranks/rank" .. idx .. ".png"
+local function GetRankMaterial(level)
+    local idx  = math.Clamp(math.floor(level) - 1, 0, RANK_MAX)
+    local path = "ranks/" .. RANK_CLASS .. "_rank" .. idx .. ".png"
     if not rankCache[path] then
         rankCache[path] = Material(path, "smooth")
     end

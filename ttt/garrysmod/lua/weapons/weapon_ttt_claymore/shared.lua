@@ -135,6 +135,8 @@ function SWEP:PrimaryAttack()
 	-- end)
 
 	if self.Next < CurTime() and self.Primed == 0 then
+		if self:Clip1() <= 0 then return end
+		self:TakePrimaryAmmo(1)
 		self.Next = CurTime() + self.Primary.Delay
 
 		self:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
@@ -150,10 +152,6 @@ function SWEP:DeployShield()
 		return
 	end
 
-	-- UNCOMMENT FOR INFINITE CLAYMER ZZZ
-	-- if GetConVar("Claymore_Infinite"):GetInt() == 0 then
-	self:GetOwner():RemoveAmmo(1,"slam")
-	-- end
 
 	timer.Simple(0.4,function()
 		if self:IsValid() then

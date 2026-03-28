@@ -149,7 +149,7 @@ if SERVER then
 
         -- optional map filter
         if map_name and map_name ~= "none" then
-            table.insert(extra_conditions, "r.map = '" .. map_name .. "'")
+            table.insert(extra_conditions, "r.map_name = '" .. map_name .. "'")
         end
 
         -- default win condition if no role/team filter
@@ -281,7 +281,7 @@ if SERVER then
                 end
 
             elseif ach.stat_type == "rounds" then
-                local count = GetRoundWinCount(sid, ach.role_type, ach.team_type)
+                local count = GetRoundWinCount(sid, ach.role_type, ach.team_type, "none")
 
                 -- DEBUG
                 -- print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (role_type: " .. ach.role_type .. " | team_type: " .. ach.team_type .. ")")
@@ -301,7 +301,9 @@ if SERVER then
                 end
             
             elseif ach.stat_type == "map_wins" then
-                local count = GetRoundWinCount(sid, nil, nil, ach.map)
+                local count = GetRoundWinCount(sid, "none", "none", ach.map)
+
+                -- print("[ACHIEVEMENTS] Map wins on " .. ach.map .. " : " .. tostring(count))
 
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)

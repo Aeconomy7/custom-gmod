@@ -109,20 +109,34 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
     local round_id = GetGlobalInt("sc0b_currentRoundID", 0)
     if round_id == 0 then return end
 
-    -- Get the winning team from the DB
-    local roundRow = sql.QueryRow("SELECT winning_team FROM rounds WHERE round_id = " .. round_id)
+    -- Get the winning team and round type from the DB
+    local roundRow = sql.QueryRow("SELECT winning_team, round_type FROM rounds WHERE round_id = " .. round_id)
     local winning_team = roundRow and roundRow.winning_team or ""
+    local is_special_round = roundRow and roundRow.round_type and roundRow.round_type ~= ""
 
     for _, ply in ipairs(player.GetAll()) do
         if not IsValid(ply) then continue end
 
         local steamid = ply:SteamID64()
-        local playerExpMulti = getPlayerExpMulti(ply)
-        local goodKillExpMulti = math.Round(10 * tonumber(playerExpMulti)) 
-        local winningTeamExpBonus = math.Round(25 * tonumber(playerExpMulti)) 
-        local survivalBonus = math.Round(10 * tonumber(playerExpMulti)) 
         local xpGain = 0
         local reasons = {}
+
+        -- Determine winning-team status before multiplier so bonus applies to all XP
+        local roleData = ply.GetSubRoleData and ply:GetSubRoleData()
+        local playerTeam = roleData and roleData.defaultTeam or ""
+        local isWinner = playerTeam ~= "" and playerTeam == winning_team
+
+        local playerExpMulti = getPlayerExpMulti(ply)
+
+        -- Special round winner: +1.0 to effective multiplier for this round
+        if is_special_round and isWinner then
+            playerExpMulti = playerExpMulti + 1.0
+            table.insert(reasons, "Special Round Win Bonus: +1.0x multiplier")
+        end
+
+        local goodKillExpMulti = math.Round(10 * tonumber(playerExpMulti))
+        local winningTeamExpBonus = math.Round(25 * tonumber(playerExpMulti))
+        local survivalBonus = math.Round(10 * tonumber(playerExpMulti))
 
         -- 1. Award 10 XP for each good kill
         -- local kills = sql.Query([[
@@ -196,10 +210,8 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
         end
 
         -- 2. Award 25 XP for being on the winning team
-        local roleData = ply.GetSubRoleData and ply:GetSubRoleData()
-        local playerTeam = roleData and roleData.defaultTeam or ""
-        if playerTeam ~= "" and playerTeam == winning_team then
-            xpGain = xpGain + winningTeamExpBonus 
+        if isWinner then
+            xpGain = xpGain + winningTeamExpBonus
             table.insert(reasons, "Winning Team: " .. winningTeamExpBonus)
         end
 
