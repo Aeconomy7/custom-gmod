@@ -3,9 +3,11 @@ util.AddNetworkString("sc0b_SendStats")
 
 -- Trigger from chat
 hook.Add("PlayerSay", "sc0b_StatsCommand", function(ply, text)
-    print("[STATS MENU] Sending stats to " .. ply:Nick())
-    sc0b_GrantAchievementByInternalID(ply, "open_stats_menu")
     if string.lower(text) == "!mystats" then
+        if not ply:IsBot() then
+            sc0b_GrantAchievementByInternalID(ply, "open_stats_menu")
+        end
+        print("[STATS MENU] Sending stats to " .. ply:Nick())
         net.Start("sc0b_SendStats")
         net.Send(ply)
         return ""

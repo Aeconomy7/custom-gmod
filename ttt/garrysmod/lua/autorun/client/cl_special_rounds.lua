@@ -94,6 +94,8 @@ local MODE_INFO = {
         desc   = {
             "Everyone has access to the TRAITOR SHOP.",
             "Infinite credits - Buy whatever you want",
+            "INNOCENTS vs TRAITORS",
+            "Team Deathmatch!",
         },
     },
     low_grav = {
@@ -149,7 +151,47 @@ net.Receive("sc0b_SpecialRoundType", function()
         startTime = CurTime(),
     }
 
+    SC0B_ActiveRoundMode = { name = modeName, color = info.color }
+
     surface.PlaySound("buttons/button15.wav")
+end)
+
+hook.Add("TTTEndRound", "sc0b_ClearActiveRoundMode", function()
+    SC0B_ActiveRoundMode = nil
+    SC0B_ChaosInnoTeam   = nil
+end)
+
+-- ─────────────────────────────────────────────
+-- Chaos: innocent teammate sync
+-- ─────────────────────────────────────────────
+net.Receive("sc0b_ChaosInnoTeam", function()
+    local count = net.ReadUInt(8)
+    SC0B_ChaosInnoTeam = {}
+    for _ = 1, count do
+        SC0B_ChaosInnoTeam[net.ReadUInt(16)] = true
+    end
+end)
+
+hook.Add("HUDPaint", "sc0b_ChaosInnoESP", function()
+    if not SC0B_ChaosInnoTeam or not next(SC0B_ChaosInnoTeam) then return end
+    local lp = LocalPlayer()
+    if not IsValid(lp) or not lp:Alive() then return end
+
+    for _, ply in ipairs(player.GetAll()) do
+        if not IsValid(ply) or ply == lp or not ply:Alive() then continue end
+        if not SC0B_ChaosInnoTeam[ply:UserID()] then continue end
+
+        local screenPos = (ply:GetShootPos() + Vector(0, 0, 18)):ToScreen()
+        if not screenPos.visible then continue end
+
+        draw.SimpleText(
+            ply:Nick(),
+            "DermaDefaultBold",
+            screenPos.x, screenPos.y,
+            Color(100, 255, 120, 220),
+            TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER
+        )
+    end
 end)
 
 -- ─────────────────────────────────────────────

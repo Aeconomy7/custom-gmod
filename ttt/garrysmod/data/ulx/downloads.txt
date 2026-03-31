@@ -40,6 +40,8 @@ maps/ttt_oxxo_redux.bsp
 ;maps/ttt_home_alone_1990.bsp
 materials/logo.vtf
 materials/logo.vmt
+materials/ttt_claymore_icon.vtf
+materials/vgui/ttt/icon_claymore.vmt
 materials/sc0b_special_rounds
 materials/level_up.png
 materials/bl_mats

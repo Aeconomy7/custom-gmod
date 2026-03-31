@@ -4,6 +4,7 @@ CreateConVar("special_round_pct", "5", FCVAR_ARCHIVE + FCVAR_NOTIFY,
     "Base percent chance of a special round; increases by this amount each normal round and resets when a special round fires", 0, 100)
 
 util.AddNetworkString("sc0b_SpecialRoundType")
+util.AddNetworkString("sc0b_ChaosInnoTeam")
 
 -- ─────────────────────────────────────────────
 -- Rarity weights
@@ -95,9 +96,24 @@ end
 local currentMode    = nil   -- active only during ROUND_ACTIVE
 local pendingMode    = nil   -- chosen during prep, promoted to currentMode at TTTBeginRound
 local forcedMode     = nil   -- set by admin command; consumed on next TTTBeginRound
-local currentPct     = nil   -- lazily initialized; tracks rolling chance this session
+local currentPct     = nil   -- lazily initialized; tracks rolling chance; persisted across map changes
 local roundCount     = 0     -- total rounds started this session
 local lastWasSpecial = false -- whether the previous round was a special round
+
+-- ─────────────────────────────────────────────
+-- Persistence (survives map changes)
+-- ─────────────────────────────────────────────
+local PCT_FILE = "sc0b_special_round_pct.txt"
+
+local function SavePct()
+    file.Write(PCT_FILE, tostring(currentPct))
+end
+
+local function LoadPct()
+    if file.Exists(PCT_FILE, "DATA") then
+        return tonumber(file.Read(PCT_FILE, "DATA"))
+    end
+end
 
 -- ─────────────────────────────────────────────
 -- Helpers
@@ -330,15 +346,17 @@ hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
         game.ConsoleCommand("sv_gravity 285\n")
     end
     game.SetTimeScale(1)
+    RunConsoleCommand("ttt_inno_shop_fallback", "DISABLED")
 
     local base = GetConVar("special_round_pct"):GetInt()
-    if currentPct == nil then currentPct = base end
+    if currentPct == nil then currentPct = LoadPct() or base end
 
     if forcedMode then
         pendingMode    = forcedMode
         forcedMode     = nil
         currentPct     = base
         lastWasSpecial = true
+        SavePct()
         notifyAdmins("[SPECIAL ROUNDS] Forced: " .. pendingMode.name .. " - chance reset to " .. base .. "%")
     else
         if base > 0 and math.random(100) <= currentPct then
@@ -346,6 +364,7 @@ hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
             notifyAdmins("[SPECIAL ROUNDS] Rolled at " .. currentPct .. "%: " .. pendingMode.name .. " - resetting to " .. base .. "%")
             currentPct     = base
             lastWasSpecial = true
+            SavePct()
         else
             if lastWasSpecial then
                 notifyAdmins("[SPECIAL ROUNDS] Last round was special - chance reset to " .. currentPct .. "%")
@@ -354,6 +373,7 @@ hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
             end
             currentPct     = math.min(currentPct + base, 100)
             lastWasSpecial = false
+            SavePct()
             return
         end
     end
@@ -395,6 +415,24 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
     -- Chaos: open T shop panel for innocents by routing their fallback to traitor
     if currentMode.id == "chaos" then
         RunConsoleCommand("ttt_inno_shop_fallback", "traitor")
+
+        -- Sync innocent team list so innocents can see their teammates
+        local innocents = {}
+        for _, p in ipairs(player.GetAll()) do
+            if IsValid(p) and p:GetRole() == ROLE_INNOCENT then
+                innocents[#innocents + 1] = p
+            end
+        end
+        for _, p in ipairs(innocents) do
+            net.Start("sc0b_ChaosInnoTeam")
+                net.WriteUInt(#innocents - 1, 8)
+                for _, teammate in ipairs(innocents) do
+                    if teammate ~= p then
+                        net.WriteUInt(teammate:UserID(), 16)
+                    end
+                end
+            net.Send(p)
+        end
     end
 
     -- Chat announcement

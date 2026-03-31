@@ -157,28 +157,6 @@ hook.Add("TTTScoreboardColorForPlayer", "GS_RankNameColor", function(ply)
     return GetRankColor(level)
 end)
 
--- ──────────────────────────────────────────────────────────
--- Rank level badge in chat  (chat.AddText is text-only; no PNG embed possible)
--- ──────────────────────────────────────────────────────────
-hook.Add("OnPlayerChat", "GS_RankInChat", function(ply, text, teamOnly, isDead)
-    if not IsValid(ply) then return end
-
-    local level = GS_LevelCache[ply:SteamID64()] or 1
-    local rankColor = GetRankColor(level)
-
-    local prefix = ""
-    if isDead    then prefix = prefix .. "*DEAD* " end
-    if teamOnly  then prefix = prefix .. "*TEAM* " end
-
-    chat.AddText(
-        Color(180, 180, 180), prefix,
-        rankColor,            "[" .. level .. "] ",
-        Color(255, 255, 255), ply:Nick(),
-        Color(180, 180, 180), ": ",
-        Color(240, 240, 240), text
-    )
-    return true  -- suppress default rendering
-end)
 
 -- ──────────────────────────────────────────────────────────
 -- Change yellow title bar to blue by overriding TTTScoreboard panel Paint
@@ -202,7 +180,7 @@ hook.Add("InitPostEntity", "GS_BlueScoreboardBar", function()
             surface.SetTexture(TTTScoreboard.Logo)
         end
         surface.SetDrawColor(255, 255, 255, 255)
-        surface.DrawTexturedRect(5, 0, 192, 96)
+        surface.DrawTexturedRect(5, 96, 192, 96)
     end
 
     -- ── Player row: inject rank icon + level LEFT of player name ───────

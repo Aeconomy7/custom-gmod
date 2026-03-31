@@ -1,6 +1,6 @@
-surface.CreateFont("Impact32", {
+surface.CreateFont("Impact26", {
     font = "Impact",
-    size = 32,
+    size = 26,
     weight = 600,
     antialias = true,
     extended = true
@@ -41,65 +41,69 @@ end
 
 hook.Add("HUDPaint", "DrawSc0bHud", function()
     local ply = LocalPlayer()
-    -- if not IsValid(ply) or not ply:Alive() then return end
     if not IsValid(ply) then return end
     if not GAMEMODE or not GAMEMODE.round_state or GAMEMODE.round_state == ROUND_WAIT then return end
 
     local screenW, screenH = ScrW(), ScrH()
-    local font = "Impact32"
+    local font = "Impact26"
     surface.SetFont(font)
 
-    -- Prepare text for both lines
     local roundID  = GetGlobalInt("sc0b_currentRoundID", 0)
     local maxRounds = GetGlobalInt("sc0b_maxRounds", 6)
-    local roundStr = (roundID > 0 and maxRounds > 0) and string.format("%d", roundID) or ""
+    local roundStr  = (roundID > 0 and maxRounds > 0) and string.format("%d", roundID) or ""
     local roundPrefix = "Round: "
 
-    local vel = ply:GetVelocity()
+    local vel   = ply:GetVelocity()
     local speed = math.sqrt(vel.x ^ 2 + vel.y ^ 2)
-    local speedStr = string.format("%.0f u/s", speed)
+    local speedStr    = string.format("%.0f u/s", speed)
     local speedPrefix = "Speed: "
 
-    -- Get text heights
-    local _, roundPrefixH = surface.GetTextSize(roundPrefix)
-    local _, speedPrefixH = surface.GetTextSize(speedPrefix)
+    local activeMode  = SC0B_ActiveRoundMode
+    local modePrefix  = "Mode: "
+    local modeStr     = activeMode and activeMode.name or nil
 
-    -- Box dimensions
-    local lineSpacing = 12 -- extra space between lines
-    local padding = 12
-    local boxW = 225 -- static width
-    local boxH = roundPrefixH + speedPrefixH + lineSpacing + padding * 1.75
+    -- Fixed line height for even spacing
+    local _, lineH   = surface.GetTextSize("Ay")
+    local lineSpacing = 10
+    local padding     = 12
+    local numLines    = activeMode and 3 or 2
+
+    -- Width: measure each line and take the widest, with a minimum
+    local function lineW(prefix, value)
+        return surface.GetTextSize(prefix .. value)
+    end
+    local contentW = math.max(
+        lineW(roundPrefix, roundStr),
+        lineW(speedPrefix, speedStr),
+        activeMode and lineW(modePrefix, modeStr) or 0
+    )
+    local boxW = math.max(contentW + 32 + 16, 225)
+    local boxH = padding * 2 + numLines * lineH + (numLines - 1) * lineSpacing
 
     local boxX = screenW * 0.30 - boxW / 2
     local boxY = screenH - boxH - 10
 
-    -- background
     draw.RoundedBox(6, boxX, boxY, boxW, boxH, Color(10, 10, 10, 220))
 
-    -- outline offsets
     local offsets = {
         {-1,  0}, {1,  0}, {0, -1}, {0, 1},
         {-1, -1}, {1, -1}, {-1, 1}, {1, 1}
     }
 
-    local function DrawHudLine(y, prefix, valueStr, valueColor)
+    local function DrawHudLine(row, prefix, valueStr, valueColor)
         local prefixX = boxX + 16
         local valueX  = prefixX + surface.GetTextSize(prefix)
-        local textY   = boxY + padding + y
+        local textY   = boxY + padding + row * (lineH + lineSpacing)
 
-        -- prefix
         draw.SimpleText(prefix, font, prefixX, textY, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 
-        -- outline for value
         for _, offset in ipairs(offsets) do
             draw.SimpleText(valueStr, font, valueX + offset[1], textY + offset[2], color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
         end
 
-        -- value
         draw.SimpleText(valueStr, font, valueX, textY, valueColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
     end
 
-    -- Role color for round
     local roundColor = color_white
     if ply.GetSubRoleData then
         local roleData = ply:GetSubRoleData()
@@ -108,7 +112,11 @@ hook.Add("HUDPaint", "DrawSc0bHud", function()
         end
     end
 
-    -- Draw lines with extra spacing
     DrawHudLine(0, roundPrefix, roundStr, roundColor)
-    DrawHudLine(roundPrefixH + lineSpacing, speedPrefix, speedStr, GetRainbowColor(speed))
+    if activeMode then
+        DrawHudLine(1, modePrefix, modeStr, activeMode.color)
+        DrawHudLine(2, speedPrefix, speedStr, GetRainbowColor(speed))
+    else
+        DrawHudLine(1, speedPrefix, speedStr, GetRainbowColor(speed))
+    end
 end)
