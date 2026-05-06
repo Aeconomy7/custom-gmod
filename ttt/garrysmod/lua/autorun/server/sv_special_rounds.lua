@@ -7,87 +7,27 @@ util.AddNetworkString("sc0b_SpecialRoundType")
 util.AddNetworkString("sc0b_ChaosInnoTeam")
 
 -- ─────────────────────────────────────────────
--- Rarity weights
--- ─────────────────────────────────────────────
-local RARITY_WEIGHTS = {
-    common   = 6,
-    uncommon = 2,
-    rare     = 1,
-}
-
--- ─────────────────────────────────────────────
 -- Mode definitions
 -- ─────────────────────────────────────────────
 local SPECIAL_MODES = {
-    {
-        id     = "tank",
-        name   = "Tank Mode",
-        rarity = "common",
-        scale  = 1.5,
-        health = 500,
-    },
-    {
-        id     = "tiny",
-        name   = "Tiny Mode",
-        rarity = "common",
-        scale  = 0.5,
-        health = 50,
-    },
-    {
-        id         = "speed",
-        name       = "Speed Mode",
-        rarity     = "common",
-        speed_mult = 1.5,
-    },
-    {
-        id     = "bhop",
-        name   = "Bunny Hop Mode",
-        rarity = "common",
-    },
-    {
-        id     = "superman",
-        name   = "Superman Mode",
-        rarity = "uncommon",
-    },
-    {
-        id     = "screw_jump",
-        name   = "Screw Jump Mode",
-        rarity = "uncommon",
-    },
-    {
-        id     = "chaos",
-        name   = "Chaos Mode",
-        rarity = "rare",
-    },
-    {
-        id     = "low_grav",
-        name   = "Low Gravity",
-        rarity = "common",
-    },
-    {
-        id     = "double_time",
-        name   = "Double Time",
-        rarity = "uncommon",
-    },
-    {
-        id     = "slow_mo",
-        name   = "Slow Motion",
-        rarity = "uncommon",
-    },
+    { id = "tank",           name = "Tank Mode",       scale = 1.5, health = 250 },
+    { id = "tiny",           name = "Tiny Mode",       scale = 0.5, health = 50  },
+    { id = "speed",          name = "Speed Mode",      speed_mult = 1.5          },
+    { id = "bhop",           name = "Bunny Hop Mode"                             },
+    { id = "superman",       name = "Superman Mode"                              },
+    { id = "screw_jump",     name = "Screw Jump Mode"                            },
+    { id = "chaos",          name = "Chaos Mode"                                 },
+    { id = "low_grav",       name = "Low Gravity"                                },
+    { id = "double_time",    name = "Double Time"                                },
+    { id = "slow_mo",        name = "Slow Motion"                                },
+    { id = "exploding_props",name = "Exploding Props"                            },
 }
 
 -- ─────────────────────────────────────────────
--- Weighted random selection
+-- Random selection (equal weight)
 -- ─────────────────────────────────────────────
 local function PickRandomMode()
-    local pool = {}
-    for _, m in ipairs(SPECIAL_MODES) do
-        local w = RARITY_WEIGHTS[m.rarity] or 1
-        for _ = 1, w do
-            pool[#pool + 1] = m
-        end
-    end
-    return pool[math.random(#pool)]
+    return SPECIAL_MODES[math.random(#SPECIAL_MODES)]
 end
 
 -- ─────────────────────────────────────────────
@@ -126,7 +66,10 @@ local function ApplyMode(ply, mode)
 
     -- Scale / health
     if mode.scale then
-        ply:SetModelScale(mode.scale, 0)
+        local ok, err = pcall(ply.SetModelScale, ply, mode.scale, 0)
+        if not ok then
+            print("[SR] SetModelScale failed for " .. ply:Nick() .. ": " .. tostring(err))
+        end
         ply:SetViewOffset(VIEW_OFFSET_STAND  * mode.scale)
         ply:SetViewOffsetDucked(VIEW_OFFSET_DUCKED * mode.scale)
     end
@@ -174,7 +117,7 @@ local function ClearMode(ply)
     if not IsValid(ply) then return end
 
     -- Scale / health
-    ply:SetModelScale(1.0, 0)
+    pcall(ply.SetModelScale, ply, 1.0, 0)
     ply:SetMaxHealth(100)
     ply:SetHealth(math.min(ply:Health(), 100))
     ply:SetViewOffset(VIEW_OFFSET_STAND)
@@ -270,6 +213,27 @@ hook.Add("TTT2CanOrderEquipment", "sc0b_ChaosShop", function(ply, equipmentName,
     end
 end)
 
+-- Block no-explosion-damage item during Exploding Props (unfair immunity)
+hook.Add("TTT2CanOrderEquipment", "sc0b_ExplodingPropsShopBlock", function(ply, equipmentName)
+    local mode = pendingMode or currentMode
+    if mode and mode.id == "exploding_props" then
+        if equipmentName == "item_ttt_noexplosiondmg" then
+            return false
+        end
+    end
+end)
+
+-- Tank: strip Jester and Marker before role assignment
+hook.Add("TTT2ModifyFinalRoles", "sc0b_TankRoleFilter", function(finalRoles)
+    if not pendingMode or pendingMode.id ~= "tank" then return end
+
+    for ply, roleID in pairs(finalRoles) do
+        if roleID == ROLE_JESTER or roleID == ROLE_MARKER then
+            finalRoles[ply] = ROLE_INNOCENT
+        end
+    end
+end)
+
 -- ─────────────────────────────────────────────
 -- Admin-only messaging
 -- ─────────────────────────────────────────────
@@ -326,6 +290,7 @@ end)
 -- Prep phase: roll and tease
 -- ─────────────────────────────────────────────
 local PREP_HINTS = {
+    -- Ominous / vague
     "Something special is brewing...",
     "The air feels different this round.",
     "Something is rumbling beneath the surface.",
@@ -334,6 +299,38 @@ local PREP_HINTS = {
     "Something wicked this way comes.",
     "The laws of nature seem unstable.",
     "Forces beyond comprehension stir.",
+    "The server has a funny feeling about this one.",
+    "Reality is looking a little... wobbly.",
+    "The cosmos are misaligned. Proceed with caution.",
+    "A disturbance has been detected. Source: unknown.",
+    "Something in the walls is breathing.",
+    "The traitors are not the only thing to fear this round.",
+    "Fate has shuffled the deck.",
+    "An anomaly has been detected. Investigating...",
+    "The usual rules may not apply.",
+    "Trust nothing. Not even gravity.",
+    "This round has been flagged as irregular.",
+    "A strange signal was intercepted before the round began.",
+    "The detective's notes read: 'something is wrong.'",
+    "Even the innocent are suspicious this round.",
+    "The map looks the same. It is not.",
+    "A prophecy was spoken. It was vague and concerning.",
+    "Management has been notified. Management does not care.",
+    "The briefing has been redacted.",
+    "Proceed as normal. (You cannot proceed as normal.)",
+    "All systems nominal. (They are not nominal.)",
+    "This round has been marked for review.",
+    "Something has changed. You will figure it out.",
+    "The last person who asked questions did not survive.",
+    "Reading the fine print would have helped.",
+    "An unseen force has taken an interest in this round.",
+    "A coin was flipped. It landed on its edge.",
+    "The universe rolled a die. You won't like the result.",
+    "Conditions are... suboptimal.",
+    "The pre-round inspection revealed several concerns.",
+    "Your horoscope today: avoid open spaces.",
+    "A meteorologist would not enjoy this round.",
+    "Scientists have no comment at this time.",
 }
 
 hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
@@ -386,6 +383,27 @@ hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
 end)
 
 -- ─────────────────────────────────────────────
+-- Exploding Props helper (defined here so TTTBeginRound can call it)
+-- ─────────────────────────────────────────────
+local EXPLOSIVE_PROP_CLASSES = {
+    ["prop_physics"]             = true,
+    ["prop_physics_multiplayer"] = true,
+    ["prop_physics_override"]    = true,
+    ["func_physbox"]             = true,
+}
+
+local function MakePropExplosive(ent)
+    if not IsValid(ent) then return end
+    if not EXPLOSIVE_PROP_CLASSES[ent:GetClass()] then return end
+    ent:SetHealth(100)
+    ent:SetKeyValue("ExplodeDamage", "200")
+    ent:SetKeyValue("ExplodeRadius", "250")
+    ent:SetKeyValue("physdamagescale", "1.0")
+    -- Ensure the prop can be damaged by bullets/explosions (not just physics)
+    ent:SetKeyValue("nodamageforces", "0")
+end
+
+-- ─────────────────────────────────────────────
 -- Round start: apply mode and announce
 -- ─────────────────────────────────────────────
 hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
@@ -403,6 +421,12 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
         game.SetTimeScale(1.5)
     elseif currentMode.id == "slow_mo" then
         game.SetTimeScale(0.5)
+    elseif currentMode.id == "exploding_props" then
+        for class in pairs(EXPLOSIVE_PROP_CLASSES) do
+            for _, ent in ipairs(ents.FindByClass(class)) do
+                MakePropExplosive(ent)
+            end
+        end
     end
 
     -- Apply per-player effects
@@ -454,6 +478,14 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
             "UPDATE rounds SET round_type = '%s' WHERE round_id = %d",
             currentMode.id, round_id
         ))
+        -- Tank: correct any jester/marker rows that were forced to innocent
+        if currentMode.id == "tank" then
+            sql.Query(string.format([[
+                UPDATE round_players
+                SET role = 'innocent', team = 'innocents', starting_role = 'innocent'
+                WHERE round_id = %d AND (role = 'jester' OR role = 'marker')
+            ]], round_id))
+        end
         notifyAdmins("[SPECIAL ROUNDS] Round " .. round_id .. " set to: " .. currentMode.id)
     end)
 end)
@@ -482,6 +514,19 @@ hook.Add("TTTEndRound", "sc0b_SpecialRoundEnd", function()
     for _, ply in ipairs(player.GetAll()) do
         ClearMode(ply)
     end
+end)
+
+-- ─────────────────────────────────────────────
+-- Exploding Props: give all prop_physics the same engine-level
+-- explosive properties as an explosive barrel
+-- ─────────────────────────────────────────────
+-- Exploding Props: set explosive properties on newly spawned props
+-- ─────────────────────────────────────────────
+hook.Add("OnEntityCreated", "sc0b_ExplodingPropsInit", function(ent)
+    if not currentMode or currentMode.id ~= "exploding_props" then return end
+    timer.Simple(0, function()
+        MakePropExplosive(ent)
+    end)
 end)
 
 -- ─────────────────────────────────────────────

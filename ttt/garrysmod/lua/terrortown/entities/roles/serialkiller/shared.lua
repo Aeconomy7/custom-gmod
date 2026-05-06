@@ -85,7 +85,7 @@ if SERVER then
 
 	-- Damage scaling for Serial Killer
     local SK_WEAPON_DAMAGE_SCALE = 0.75   -- Serial Killer takes % damage from weapons
-    local SK_GUN_DAMAGE_SCALE = 0.6      -- Serial Killer deals % damage with guns
+    local SK_GUN_DAMAGE_SCALE = 0.4      -- Serial Killer deals % damage with guns
 
     hook.Add("EntityTakeDamage", "SK_DamageScaling", function(victim, dmginfo)
         local attacker = dmginfo:GetAttacker()

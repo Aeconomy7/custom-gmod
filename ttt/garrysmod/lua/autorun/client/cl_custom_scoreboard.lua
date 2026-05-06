@@ -151,6 +151,10 @@ end)
 -- ──────────────────────────────────────────────────────────
 hook.Add("TTTScoreboardColorForPlayer", "GS_RankNameColor", function(ply)
     if not IsValid(ply) then return end
+    -- Chaos mode: innocent teammates highlighted green
+    if SC0B_ChaosInnoTeam and next(SC0B_ChaosInnoTeam) and SC0B_ChaosInnoTeam[ply:UserID()] then
+        return Color(100, 255, 120)
+    end
     local sid64 = ply:SteamID64()
     local level = GS_LevelCache[sid64]
     if not level then return end  -- let TTT2 handle if we have no data yet

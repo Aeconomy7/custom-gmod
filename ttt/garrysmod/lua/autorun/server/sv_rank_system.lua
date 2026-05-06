@@ -112,7 +112,7 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
     -- Get the winning team and round type from the DB
     local roundRow = sql.QueryRow("SELECT winning_team, round_type FROM rounds WHERE round_id = " .. round_id)
     local winning_team = roundRow and roundRow.winning_team or ""
-    local is_special_round = roundRow and roundRow.round_type and roundRow.round_type ~= ""
+    local is_special_round = roundRow and roundRow.round_type and roundRow.round_type ~= "" and roundRow.round_type ~= "normal"
 
     for _, ply in ipairs(player.GetAll()) do
         if not IsValid(ply) then continue end
@@ -131,7 +131,7 @@ hook.Add("TTTEndRound", "sc0b_RankAwardXP", function(result)
         -- Special round winner: +1.0 to effective multiplier for this round
         if is_special_round and isWinner then
             playerExpMulti = playerExpMulti + 1.0
-            table.insert(reasons, "Special Round Win Bonus: +1.0x multiplier")
+            table.insert(reasons, "Special Round Win Bonus")
         end
 
         local goodKillExpMulti = math.Round(10 * tonumber(playerExpMulti))

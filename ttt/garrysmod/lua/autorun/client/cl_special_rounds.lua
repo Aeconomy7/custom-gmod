@@ -29,7 +29,7 @@ surface.CreateFont("sc0b_SR_Label", {
 -- Mode icons (32x32 PNGs, tinted at draw time)
 -- ─────────────────────────────────────────────
 local MODE_ICONS = {}
-local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "low_grav", "double_time", "slow_mo" }
+local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "low_grav", "double_time", "slow_mo", "exploding_props" }
 for _, id in ipairs(ICON_IDS) do
     MODE_ICONS[id] = Material("sc0b_special_rounds/" .. id .. ".png", "noclamp smooth")
 end
@@ -41,57 +41,50 @@ local ICON_DRAW_SIZE = 64  -- render at 2x for crispness
 -- ─────────────────────────────────────────────
 local MODE_INFO = {
     tank = {
-        color  = Color(255, 80,  80),
-        rarity = "COMMON",
-        desc   = {
+        color = Color(255, 80,  80),
+        desc  = {
             "Everyone is BIG and TANKY.",
-            "1.5x model scale - 500 HP",
+            "1.5x model scale - 250 HP",
         },
     },
     tiny = {
-        color  = Color(80, 200, 255),
-        rarity = "COMMON",
-        desc   = {
+        color = Color(80, 200, 255),
+        desc  = {
             "Everyone is TINY and FRAGILE.",
             "0.5x model scale - 50 HP",
         },
     },
     speed = {
-        color  = Color(102, 255, 180),
-        rarity = "COMMON",
-        desc   = {
+        color = Color(102, 255, 180),
+        desc  = {
             "Everyone moves at DOUBLE SPEED.",
             "2x walk and run speed",
         },
     },
     bhop = {
-        color  = Color(80, 255, 160),
-        rarity = "COMMON",
-        desc   = {
+        color = Color(80, 255, 160),
+        desc  = {
             "Hold SPACE for perfect bunny hops.",
             "1 jump only, utilize strafing!",
         },
     },
     superman = {
-        color  = Color(255, 224, 102),
-        rarity = "UNCOMMON",
-        desc   = {
+        color = Color(255, 224, 102),
+        desc  = {
             "Everyone receives ALL passive T shop buffs.",
             "Armor - No fall - No explosions - No fire - and more",
         },
     },
     screw_jump = {
-        color  = Color(190, 120, 255),
-        rarity = "UNCOMMON",
-        desc   = {
+        color = Color(190, 120, 255),
+        desc  = {
             "Everyone has SEVEN jumps.",
             "Leap across the map - get creative.",
         },
     },
     chaos = {
-        color  = Color(255, 90, 210),
-        rarity = "RARE",
-        desc   = {
+        color = Color(255, 90, 210),
+        desc  = {
             "Everyone has access to the TRAITOR SHOP.",
             "Infinite credits - Buy whatever you want",
             "INNOCENTS vs TRAITORS",
@@ -99,27 +92,31 @@ local MODE_INFO = {
         },
     },
     low_grav = {
-        color  = Color(120, 200, 255),
-        rarity = "COMMON",
-        desc   = {
+        color = Color(120, 200, 255),
+        desc  = {
             "Gravity has been reduced to near zero.",
             "BLAST OFF!",
         },
     },
     double_time = {
-        color  = Color(255, 200, 50),
-        rarity = "UNCOMMON",
-        desc   = {
+        color = Color(255, 200, 50),
+        desc  = {
             "The server is running at 150% speed.",
             "Everything moves and fires faster.",
         },
     },
     slow_mo = {
-        color  = Color(160, 100, 255),
-        rarity = "UNCOMMON",
-        desc   = {
+        color = Color(160, 100, 255),
+        desc  = {
             "The server is running at 50% speed.",
             "Everything moves and fires slower.",
+        },
+    },
+    exploding_props = {
+        color = Color(255, 120, 30),
+        desc  = {
+            "All props explode when destroyed.",
+            "Watch your crossfire.",
         },
     },
 }
@@ -140,12 +137,11 @@ net.Receive("sc0b_SpecialRoundType", function()
     local modeId   = net.ReadString()
     local modeName = net.ReadString()
 
-    local info = MODE_INFO[modeId] or { color = Color(255, 255, 255), rarity = "", desc = {} }
+    local info = MODE_INFO[modeId] or { color = Color(255, 255, 255), desc = {} }
 
     ann = {
         name      = modeName,
         color     = info.color,
-        rarity    = info.rarity,
         desc      = info.desc,
         icon      = MODE_ICONS[modeId],
         startTime = CurTime(),
@@ -229,9 +225,9 @@ hook.Add("HUDPaint", "sc0b_SpecialRoundAnnouncement", function()
     surface.SetFont("sc0b_SR_Title")
     local tw, th = surface.GetTextSize(ann.name)
 
-    -- Measure rarity label
+    -- Measure label
     surface.SetFont("sc0b_SR_Label")
-    local lw, lh = surface.GetTextSize("- " .. ann.rarity .. " SPECIAL ROUND -")
+    local lw, lh = surface.GetTextSize("- SPECIAL ROUND -")
 
     -- Measure description lines
     surface.SetFont("sc0b_SR_Desc")
@@ -270,9 +266,9 @@ hook.Add("HUDPaint", "sc0b_SpecialRoundAnnouncement", function()
         yOff = yOff + ICON_DRAW_SIZE + 12
     end
 
-    -- Rarity label
+    -- Label
     surface.SetFont("sc0b_SR_Label")
-    local label = "- " .. ann.rarity .. " SPECIAL ROUND -"
+    local label = "- SPECIAL ROUND -"
     local lw2   = surface.GetTextSize(label)
     surface.SetTextColor(c.r, c.g, c.b, math.floor(a * 200))
     surface.SetTextPos(cx - lw2 * 0.5, yOff)
