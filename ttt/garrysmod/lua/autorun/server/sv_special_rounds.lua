@@ -103,7 +103,7 @@ local function ApplyMode(ply, mode)
     end
 
     -- Superman: give all passive buff items via TTT2's item system
-    if mode.id == "superman" then
+    if mode.id == "superman" and items then
         for _, item in pairs(items.GetList()) do
             if item.EquipMenuData and item.EquipMenuData.type == "item_passive" then
                 ply:GiveEquipmentItem(item.id)
@@ -140,10 +140,12 @@ local function ClearMode(ply)
     end
 
     -- Superman: strip all passive buff items
-    for _, item in pairs(items.GetList()) do
-        if item.EquipMenuData and item.EquipMenuData.type == "item_passive" then
-            if ply:HasEquipmentItem(item.id) then
-                ply:RemoveEquipmentItem(item.id)
+    if items then
+        for _, item in pairs(items.GetList()) do
+            if item.EquipMenuData and item.EquipMenuData.type == "item_passive" then
+                if ply:HasEquipmentItem(item.id) then
+                    ply:RemoveEquipmentItem(item.id)
+                end
             end
         end
     end

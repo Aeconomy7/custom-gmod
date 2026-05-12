@@ -163,10 +163,14 @@ end
 --hooks and messages
 if CLIENT then
 	hook.Add("Initialize", "ttt_pirate_contract init", function()
-		STATUS:RegisterStatus("ttt2_pirate_contract", {
-			hud = Material("vgui/ttt/hud_icon_pirate.png"),
-			type = "good"
-		})
+		timer.Simple(0, function()
+			if STATUS then
+				STATUS:RegisterStatus("ttt2_pirate_contract", {
+					hud = Material("vgui/ttt/hud_icon_pirate.png"),
+					type = "good"
+				})
+			end
+		end)
 	end)
 
 	net.Receive("TTT2PirContractMaster", function()

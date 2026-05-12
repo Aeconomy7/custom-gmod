@@ -224,7 +224,7 @@ hook.Add("InitPostEntity", "GS_BlueScoreboardBar", function()
         origLayout(self)
         if not self.gs_rank then return end
         -- Shift name labels and role icon rightward to make room
-        local function shiftX(p) local x, y = p:GetPos(); p:SetPos(x + GS_RANK_W, y) end
+        local function shiftX(p) if not p then return end local x, y = p:GetPos(); p:SetPos(x + GS_RANK_W, y) end
         shiftX(self.nick)
         shiftX(self.nick2)
         shiftX(self.nick3)

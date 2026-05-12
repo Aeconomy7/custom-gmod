@@ -9,11 +9,14 @@ util.AddNetworkString("sc0b_SendStats")
 local function GetLoggedRoleAndTeam(ply)
     if not IsValid(ply) then return "unknown", "unknown" end
 
-    local roleData = ply:GetSubRoleData()
-    local roleName = roleData and roleData.name or "unknown"
-    local roleTeam = roleData and roleData.defaultTeam or "unknown"
+    local roleData
+    if ply.GetSubRoleData then
+        roleData = ply:GetSubRoleData()
+    elseif ply.GetSubRole and roles and roles.GetByIndex then
+        roleData = roles.GetByIndex(ply:GetSubRole())
+    end
 
-    return roleName, roleTeam
+    return (roleData and roleData.name or "unknown"), (roleData and roleData.defaultTeam or "unknown")
 end
 
 -- Helper to check if logging is enabled
