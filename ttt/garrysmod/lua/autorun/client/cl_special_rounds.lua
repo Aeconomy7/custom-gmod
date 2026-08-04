@@ -29,7 +29,7 @@ surface.CreateFont("sc0b_SR_Label", {
 -- Mode icons (32x32 PNGs, tinted at draw time)
 -- ─────────────────────────────────────────────
 local MODE_ICONS = {}
-local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "low_grav", "double_time", "slow_mo", "exploding_props" }
+local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "knife_round", "low_grav", "double_time", "slow_mo", "exploding_props", "oops_all_zombies" }
 for _, id in ipairs(ICON_IDS) do
     MODE_ICONS[id] = Material("sc0b_special_rounds/" .. id .. ".png", "noclamp smooth")
 end
@@ -87,8 +87,15 @@ local MODE_INFO = {
         desc  = {
             "Everyone has access to the TRAITOR SHOP.",
             "Infinite credits - Buy whatever you want",
-            "INNOCENTS vs TRAITORS",
-            "Team Deathmatch!",
+            "RED vs BLUE - Team Deathmatch!",
+        },
+    },
+    knife_round = {
+        color = Color(200, 200, 220),
+        desc  = {
+            "Everyone gets a random CSGO knife skin.",
+            "No guns. No shop. Just steel.",
+            "RED vs BLUE - Team Deathmatch!",
         },
     },
     low_grav = {
@@ -119,6 +126,13 @@ local MODE_INFO = {
             "Watch your crossfire.",
         },
     },
+    oops_all_zombies = {
+        color = Color(130, 210, 60),
+        desc  = {
+            "Everyone spawns as a ZOMBIE.",
+            "Zombie Deagle only - Last Zombie Standing!",
+        },
+    },
 }
 
 -- ─────────────────────────────────────────────
@@ -147,44 +161,47 @@ net.Receive("sc0b_SpecialRoundType", function()
         startTime = CurTime(),
     }
 
-    SC0B_ActiveRoundMode = { name = modeName, color = info.color }
+    SC0B_ActiveRoundMode = { id = modeId, name = modeName, color = info.color }
 
     surface.PlaySound("buttons/button15.wav")
 end)
 
 hook.Add("TTTEndRound", "sc0b_ClearActiveRoundMode", function()
     SC0B_ActiveRoundMode = nil
-    SC0B_ChaosInnoTeam   = nil
 end)
 
 -- ─────────────────────────────────────────────
--- Chaos: innocent teammate sync
+-- Chaos: team ESP (RED / BLUE)
 -- ─────────────────────────────────────────────
-net.Receive("sc0b_ChaosInnoTeam", function()
-    local count = net.ReadUInt(8)
-    SC0B_ChaosInnoTeam = {}
-    for _ = 1, count do
-        SC0B_ChaosInnoTeam[net.ReadUInt(16)] = true
-    end
-end)
+local CHAOS_TEAM_COLORS = {
+    redteams  = Color(255, 70, 70, 220),
+    blueteams = Color(70, 150, 255, 220),
+}
 
-hook.Add("HUDPaint", "sc0b_ChaosInnoESP", function()
-    if not SC0B_ChaosInnoTeam or not next(SC0B_ChaosInnoTeam) then return end
+hook.Add("HUDPaint", "sc0b_ChaosTeamESP", function()
+    if not SC0B_ActiveRoundMode then return end
+    local modeId = SC0B_ActiveRoundMode.id
+    if modeId ~= "chaos" and modeId ~= "knife_round" then return end
+
     local lp = LocalPlayer()
     if not IsValid(lp) or not lp:Alive() then return end
 
+    local myTeam = lp:GetTeam()
+    local col    = CHAOS_TEAM_COLORS[myTeam]
+    if not col then return end
+
     for _, ply in ipairs(player.GetAll()) do
         if not IsValid(ply) or ply == lp or not ply:Alive() then continue end
-        if not SC0B_ChaosInnoTeam[ply:UserID()] then continue end
+        if ply:GetTeam() ~= myTeam then continue end
 
         local screenPos = (ply:GetShootPos() + Vector(0, 0, 18)):ToScreen()
         if not screenPos.visible then continue end
 
         draw.SimpleText(
-            ply:Nick(),
+            ply:Nick() .. " [ALLY]",
             "DermaDefaultBold",
             screenPos.x, screenPos.y,
-            Color(100, 255, 120, 220),
+            col,
             TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER
         )
     end

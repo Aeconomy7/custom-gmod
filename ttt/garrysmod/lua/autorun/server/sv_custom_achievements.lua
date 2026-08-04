@@ -115,6 +115,40 @@ if SERVER then
 
 
     ----------------------------------------------------------------------
+    -- GetSpecialRoundWinCount
+    -- steamid    : player's SteamID64 (string)
+    -- round_type : special round id string, e.g. "tiny", "low_grav"
+    ----------------------------------------------------------------------
+    -- FFA round types use winner_steamid instead of team-based win matching
+    local FFA_ROUND_TYPES = { oops_all_zombies = true }
+
+    local function GetSpecialRoundWinCount(steamid, round_type)
+        if FFA_ROUND_TYPES[round_type] then
+            local q = sql.QueryRow([[
+                SELECT COUNT(*) AS wins
+                FROM rounds r
+                WHERE r.test_round = 0
+                AND r.round_type = ']] .. round_type .. [['
+                AND r.winner_steamid = ']] .. steamid .. [['
+            ]])
+            return q and tonumber(q.wins) or 0
+        end
+
+        local q = sql.QueryRow([[
+            SELECT COUNT(*) AS wins
+            FROM rounds r
+            JOIN round_players rp ON rp.round_id = r.round_id
+            WHERE r.test_round = 0
+            AND r.round_type = ']] .. round_type .. [['
+            AND r.winning_team = rp.team
+            AND rp.team != 'nones'
+            AND rp.steamid = ']] .. steamid .. [['
+        ]])
+        return q and tonumber(q.wins) or 0
+    end
+
+
+    ----------------------------------------------------------------------
     -- GetRoundWinCount
     -- steamid    : player's SteamID64 (string)
     -- role_type  : optional role filter (string or nil/"none")
@@ -303,15 +337,17 @@ if SERVER then
             elseif ach.stat_type == "map_wins" then
                 local count = GetRoundWinCount(sid, "none", "none", ach.map)
 
-                -- print("[ACHIEVEMENTS] Map wins on " .. ach.map .. " : " .. tostring(count))
-
                 if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
                     GrantAchievement(ply, ach)
                 end
 
-            -- FUTURE STAT TYPES
-            -- elseif ach.stat_type == "special" then
-            --     print("[ACHIEVEMENTS] Handling special achievement!")
+            elseif ach.stat_type == "special_round_wins" then
+                -- ach.map field holds the round_type id (e.g. "tiny", "low_grav")
+                local count = GetSpecialRoundWinCount(sid, ach.map)
+
+                if count >= required and not PlayerHasAchievement(sid, ach.internal_id) then
+                    GrantAchievement(ply, ach)
+                end
             end
         end
     end

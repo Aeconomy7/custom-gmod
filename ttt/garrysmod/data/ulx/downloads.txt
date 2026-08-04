@@ -16,6 +16,7 @@ sound/music/end_random_music/jesters
 sound/music/end_random_music/serialkillers
 sound/music/end_random_music/markers
 sound/music/end_random_music/pirates
+sound/music/end_random_music/timeout
 sound/music/end_random_music
 sound/bl_sounds
 sound/annie-are-you-ok.wav
@@ -40,6 +41,8 @@ maps/ttt_oxxo_redux.bsp
 ;maps/ttt_home_alone_1990.bsp
 materials/logo.vtf
 materials/logo.vmt
+materials/dirt1.vmt
+materials/dirt1.vtf
 materials/ttt_claymore_icon.vtf
 materials/vgui/ttt/icon_claymore.vmt
 materials/sc0b_special_rounds
@@ -54,6 +57,7 @@ materials/music/end_random_music/jesters
 materials/music/end_random_music/markers
 materials/music/end_random_music/necromancers
 materials/music/end_random_music/pirates
+materials/vgui/ttt/dynamic/roles
 materials/vgui/entities/npc_zsssamusu.vmt
 materials/vgui/entities/npc_zsssamusu.vtf
 materials/models/playerlink

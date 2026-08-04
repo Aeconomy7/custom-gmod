@@ -1,0 +1,6 @@
+"UnlitGeneric"
+{
+    "$basetexture" "voice/icntlk_sv"
+    "$translucent"  "1"
+    "$alpha"        "1"
+}

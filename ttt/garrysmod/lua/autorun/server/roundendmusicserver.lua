@@ -173,6 +173,36 @@ if SERVER then
     end
 
 
+    -- Print songs found per role once at server load
+    hook.Add("Initialize", "End_Random_Music_PrintSongs", function()
+        local searchPath, fp
+        if GetConVar("ttt_end_random_music_source"):GetString() == "0" then
+            searchPath = "DATA"
+            fp = "music/"
+        else
+            searchPath = "GAME"
+            fp = "sound/music/"
+        end
+        local roleSlots = {
+            { "innocents",     file.Find(fp .. "end_random_music/innocents/*.mp3",     searchPath) },
+            { "traitors",      file.Find(fp .. "end_random_music/traitors/*.mp3",      searchPath) },
+            { "timeout",       file.Find(fp .. "end_random_music/timeout/*.mp3",       searchPath) },
+            { "jesters",       file.Find(fp .. "end_random_music/jesters/*.mp3",       searchPath) },
+            { "markers",       file.Find(fp .. "end_random_music/markers/*.mp3",       searchPath) },
+            { "pirates",       file.Find(fp .. "end_random_music/pirates/*.mp3",       searchPath) },
+            { "necromancers",  file.Find(fp .. "end_random_music/necromancers/*.mp3",  searchPath) },
+            { "serialkillers", file.Find(fp .. "end_random_music/serialkillers/*.mp3", searchPath) },
+            { "other",         file.Find(fp .. "end_random_music/other/*.mp3",         searchPath) },
+        }
+        print("[End_Random_Music] Songs loaded per role:")
+        for _, entry in ipairs(roleSlots) do
+            local role, t = entry[1], entry[2]
+            if t and #t > 0 then
+                print(string.format("  %-14s (%d): %s", role, #t, table.concat(t, ", ")))
+            end
+        end
+    end)
+
     --The Magic
     function roundend(wintype)
         if (GetConVar("ttt_end_random_music_source"):GetString() == "0") then
@@ -283,16 +313,6 @@ if SERVER then
             end
         end
 
-        -- report on music scan
-        if (GetConVar("ttt_end_random_music_silentscan"):GetString() == "0") then
-            if (filesGlobal != nil) then
-                for i = 1, table.getn(filesGlobal), 1 do
-                    print ("[End_Random_Music] Found " .. filesGlobal[i])
-                end
-            end
-        end
-
-
         --Shuffel and send info to client
         if (filesGlobal != nil) then
             --Unspecific wintype
@@ -323,10 +343,14 @@ if SERVER then
                 print("[End_Random_Music] Custom wintype (role-based music selection)")
 
                 local roleKey = tostring(wintype)
+                if wintype == WIN_TIMELIMIT then
+                    roleKey = "timeout"
+                end
 
                 local roleMusicTable = {
                     ["innocents"] = filesInnocent,
                     ["traitors"] = filesTraitor,
+                    ["timeout"] = filesTimeout,
                     ["jesters"] = filesTTT2Jester,
                     ["markers"] = filesTTT2Marker,
                     ["pirates"] = filesTTT2Pirate,

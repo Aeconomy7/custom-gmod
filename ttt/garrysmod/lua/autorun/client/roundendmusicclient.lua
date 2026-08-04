@@ -19,6 +19,7 @@ local roleColors = {
     ["markers"]       = Color(200, 120, 255),   -- Lighter purple
     ["pirates"]       = Color(255, 200, 40),    -- Gold/yellow
     ["serialkillers"] = Color(0, 105, 148),   -- White
+    ["timeout"]       = Color(0, 170, 45),    -- Green (innocents win)
     ["other"]         = Color(180, 180, 180)    -- Neutral gray
 }
 
@@ -154,14 +155,20 @@ net.Receive("ttt_end_random_music", function()
     if GetConVar("ttt_end_random_music_enabled"):GetBool() == false then
         print("[End_Random_Music] Disabled by client convar, not playing music.")
     else
-        print ("[End_Random_Music] trying to play:" .. chosenMusic);
-        sound.PlayFile( chosenMusic, "noplay", function( station, errCode, errStr )
-        if ( IsValid( station ) ) then
-            station:Play()
+        print("[End_Random_Music] trying to play: " .. chosenMusic)
+        local function onStation(station, errCode, errStr)
+            if IsValid(station) then
+                station:Play()
             else
-                print( "[End_Random_Music] Error playing sound!", errCode, errStr )
+                print("[End_Random_Music] Error playing sound!", errCode, errStr)
             end
-        end )
+        end
+        -- Custom MVP songs are full HTTPS URLs; regular songs are local file paths.
+        if chosenMusic:sub(1, 4) == "http" then
+            sound.PlayURL(chosenMusic, "noplay", onStation)
+        else
+            sound.PlayFile(chosenMusic, "noplay", onStation)
+        end
     end
 
     musicInfoExpire = CurTime() + 25

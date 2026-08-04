@@ -43,9 +43,12 @@ if SERVER then
             world_damage_drown INTEGER DEFAULT 0,
             world_damage_vehicle INTEGER DEFAULT 0,
             world_damage_world INTEGER DEFAULT 0,
-            round_type TEXT DEFAULT 'normal'
+            round_type TEXT DEFAULT 'normal',
+            winner_steamid TEXT DEFAULT NULL
         )
     ]])
+    -- Add winner_steamid to existing databases that predate this column
+    -- sql.Query("ALTER TABLE rounds ADD COLUMN winner_steamid TEXT DEFAULT NULL")
 
     sql.Query([[
         CREATE TABLE IF NOT EXISTS round_players (
@@ -181,20 +184,26 @@ if SERVER then
         end
 
         print("[ROUND LOGGER] Ending round ID:", currentRoundID, "with result:", result)
+        local winnerSteamID = SC0B_OAZ_WinnerSteamID
+        SC0B_OAZ_WinnerSteamID = nil
+
         local query = string.format([[
             UPDATE rounds
-            SET 
-                end_time = %d, 
-                winning_team = '%s', 
-                world_damage_fall = %d, 
-                world_damage_prop = %d, 
-                world_damage_explosion = %d, 
+            SET
+                end_time = %d,
+                winning_team = '%s',
+                winner_steamid = %s,
+                world_damage_fall = %d,
+                world_damage_prop = %d,
+                world_damage_explosion = %d,
                 world_damage_fire = %d,
                 world_damage_drown = %d,
                 world_damage_vehicle = %d,
                 world_damage_world = %d
             WHERE round_id = %d
-        ]], os.time(), result, worldDamage.fall, worldDamage.prop, worldDamage.explosion, worldDamage.fire, worldDamage.drown, worldDamage.vehicle, worldDamage.world, tonumber(currentRoundID))
+        ]], os.time(), result,
+            winnerSteamID and ("'" .. winnerSteamID .. "'") or "NULL",
+            worldDamage.fall, worldDamage.prop, worldDamage.explosion, worldDamage.fire, worldDamage.drown, worldDamage.vehicle, worldDamage.world, tonumber(currentRoundID))
         print("[ROUND LOGGER] Query: " .. query)
         sql.Query(query)
 
