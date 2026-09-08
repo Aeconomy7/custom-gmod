@@ -44,13 +44,3 @@ concommand.Add("title", function()
 end)
 
 
-hook.Add("PlayerSay", "sc0b_TitleChatCommand", function(ply, text)
-    text = string.Trim(string.lower(text))
-
-    if text == "!title" or text == "/title" then
-        net.Start("sc0b_RequestTitles")
-        net.Send(ply)
-
-        return ""
-    end
-end)

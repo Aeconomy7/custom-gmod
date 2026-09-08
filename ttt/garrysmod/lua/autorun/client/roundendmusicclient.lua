@@ -12,15 +12,35 @@ surface.CreateFont("Impact24", {
 })
 
 local roleColors = {
-    ["innocents"]     = Color(0, 170, 45),      -- Bright green
-    ["traitors"]      = Color(220, 40, 40),     -- Readable red
-    ["necromancers"]  = Color(160, 60, 255),    -- Purple
-    ["jesters"]       = Color(255, 80, 180),    -- Pink
-    ["markers"]       = Color(200, 120, 255),   -- Lighter purple
-    ["pirates"]       = Color(255, 200, 40),    -- Gold/yellow
-    ["serialkillers"] = Color(0, 105, 148),   -- White
-    ["timeout"]       = Color(0, 170, 45),    -- Green (innocents win)
-    ["other"]         = Color(180, 180, 180)    -- Neutral gray
+    -- Standard roles
+    ["innocents"]     = Color(0, 170, 45),
+    ["traitors"]      = Color(220, 40, 40),
+    ["necromancers"]  = Color(160, 60, 255),
+    ["jesters"]       = Color(255, 80, 180),
+    ["markers"]       = Color(200, 120, 255),
+    ["pirates"]       = Color(255, 200, 40),
+    ["serialkillers"] = Color(0, 105, 148),
+    ["timeout"]       = Color(0, 170, 45),
+    ["other"]         = Color(180, 180, 180),
+
+    -- Custom teams (matches role shared.lua color definitions)
+    ["redteams"]      = Color(220, 50, 50),
+    ["blueteams"]     = Color(50, 120, 220),
+    ["ffas"]          = Color(255, 215, 0),
+
+    -- Special round modes (matches cl_special_rounds.lua MODE_INFO colors)
+    ["special_rounds/knife_round"]     = Color(200, 200, 220),
+    ["special_rounds/chaos"]           = Color(255, 90, 210),
+    ["special_rounds/crowbar_ffa"]     = Color(255, 215, 0),
+    ["special_rounds/oops_all_zombies"]= Color(130, 210, 60),
+    ["special_rounds/low_grav"]        = Color(120, 200, 255),
+    ["special_rounds/slow_mo"]         = Color(160, 100, 255),
+    ["special_rounds/tiny"]            = Color(80, 200, 255),
+    ["special_rounds/speed"]           = Color(102, 255, 180),
+    ["special_rounds/bhop"]            = Color(80, 255, 160),
+    ["special_rounds/superman"]        = Color(255, 224, 102),
+    ["special_rounds/screw_jump"]      = Color(190, 120, 255),
+    ["special_rounds/exploding_props"] = Color(255, 120, 30),
 }
 
 if CLIENT then
@@ -222,7 +242,7 @@ hook.Add("HUDPaint", "DrawRoundEndMusicHUD", function()
     end
 
     -- colored song text on top
-    local songColor = roleColors[musicInfo.roleKey or "other"] or color_white
+    local songColor = roleColors[musicInfo.roleKey or "other"] or Color(0, 0, 0)
     draw.SimpleText(songStr, font, valueX, textY, songColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 
     -- band text below

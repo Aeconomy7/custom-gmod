@@ -315,7 +315,28 @@ if SERVER then
                 end
 
             elseif ach.stat_type == "rounds" then
-                local count = GetRoundWinCount(sid, ach.role_type, ach.team_type, "none")
+                local count
+
+                -- Wrath changes subrole mid-round (revives as ROLE_TRAITOR), so rp.role
+                -- is overwritten to 'traitor' by round end. Use starting_role instead so
+                -- both wrath achievements (Innocent win and revived Traitor win) are counted.
+                if ach.role_type == "wrath" then
+                    local q = sql.QueryRow([[
+                        SELECT COUNT(*) AS wins
+                        FROM rounds r
+                        JOIN round_players rp ON rp.round_id = r.round_id
+                        WHERE r.test_round = 0
+                        AND r.end_time IS NOT NULL
+                        AND rp.team != 'nones'
+                        AND rp.steamid = ']] .. sid .. [['
+                        AND rp.starting_role = 'wrath'
+                        AND rp.team = ']] .. ach.team_type .. [['
+                        AND r.winning_team = rp.team
+                    ]])
+                    count = q and tonumber(q.wins) or 0
+                else
+                    count = GetRoundWinCount(sid, ach.role_type, ach.team_type, "none")
+                end
 
                 -- DEBUG
                 -- print("[ACHIEVEMENTS][" .. ply:Nick() .. "][" .. ach.internal_id .. "] " .. count .. "/" .. required .. "  (role_type: " .. ach.role_type .. " | team_type: " .. ach.team_type .. ")")

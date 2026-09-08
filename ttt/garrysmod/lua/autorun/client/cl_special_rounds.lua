@@ -29,7 +29,7 @@ surface.CreateFont("sc0b_SR_Label", {
 -- Mode icons (32x32 PNGs, tinted at draw time)
 -- ─────────────────────────────────────────────
 local MODE_ICONS = {}
-local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "knife_round", "low_grav", "double_time", "slow_mo", "exploding_props", "oops_all_zombies" }
+local ICON_IDS = { "tank", "tiny", "speed", "bhop", "superman", "screw_jump", "chaos", "knife_round", "low_grav", "double_time", "slow_mo", "exploding_props", "oops_all_zombies", "crowbar_ffa", "plant_and_defuse" }
 for _, id in ipairs(ICON_IDS) do
     MODE_ICONS[id] = Material("sc0b_special_rounds/" .. id .. ".png", "noclamp smooth")
 end
@@ -131,6 +131,20 @@ local MODE_INFO = {
         desc  = {
             "Everyone spawns as a ZOMBIE.",
             "Zombie Deagle only - Last Zombie Standing!",
+        },
+    },
+    crowbar_ffa = {
+        color = Color(255, 215, 0),
+        desc  = {
+            "Everyone gets a crowbar. No teams. No guns.",
+            "Last Player Standing wins!",
+        },
+    },
+    plant_and_defuse = {
+        color = Color(220, 80, 30),
+        desc  = {
+            "PLANTERS: Place your C4 in 30 seconds.",
+            "DEFUSERS: Find and defuse all bombs!",
         },
     },
 }

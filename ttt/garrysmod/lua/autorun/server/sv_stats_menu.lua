@@ -3,7 +3,15 @@ util.AddNetworkString("sc0b_SendStats")
 
 -- Trigger from chat
 hook.Add("PlayerSay", "sc0b_StatsCommand", function(ply, text)
-    if string.lower(text) == "!mystats" then
+    local cmd = string.lower(string.Trim(text))
+
+    if cmd == "!title" then
+        net.Start("sc0b_RequestTitles")
+        net.Send(ply)
+        return ""
+    end
+
+    if cmd == "!mystats" then
         if not ply:IsBot() then
             sc0b_GrantAchievementByInternalID(ply, "open_stats_menu")
         end
@@ -13,6 +21,7 @@ hook.Add("PlayerSay", "sc0b_StatsCommand", function(ply, text)
         return ""
     end
 end)
+
 
 -- Trigger from console
 concommand.Add("sc0b_mystats", function(ply)

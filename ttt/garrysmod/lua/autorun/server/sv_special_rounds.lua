@@ -4,6 +4,8 @@ CreateConVar("special_round_pct", "5", FCVAR_ARCHIVE + FCVAR_NOTIFY,
     "Base percent chance of a special round; increases by this amount each normal round and resets when a special round fires", 0, 100)
 
 util.AddNetworkString("sc0b_SpecialRoundType")
+util.AddNetworkString("sc0b_PlantDefuseBlind")
+util.AddNetworkString("TTT_C4PDDisarmResult")
 
 -- ─────────────────────────────────────────────
 -- Mode definitions
@@ -17,18 +19,28 @@ local SPECIAL_MODES = {
     { id = "screw_jump",       name = "Screw Jump Mode"                              },
     { id = "chaos",            name = "Chaos Mode"                                   },
     { id = "knife_round",      name = "Knife Round"                                  },
+    { id = "crowbar_ffa",      name = "GO BONKERS!"                                  },
     { id = "low_grav",         name = "Low Gravity"                                  },
     -- { id = "double_time",    name = "Double Time"                                 },
     { id = "slow_mo",          name = "Slow Motion"                                  },
     { id = "exploding_props",  name = "Exploding Props"                              },
-    { id = "oops_all_zombies", name = "Oops All Zombies"                             },
+    { id = "oops_all_zombies",  name = "Oops All Zombies"                              },
+    { id = "plant_and_defuse", name = "Plant and Defuse", min_players = 5             },
 }
 
 -- ─────────────────────────────────────────────
 -- Random selection (equal weight)
 -- ─────────────────────────────────────────────
 local function PickRandomMode()
-    return SPECIAL_MODES[math.random(#SPECIAL_MODES)]
+    local n = #player.GetAll()
+    local available = {}
+    for _, m in ipairs(SPECIAL_MODES) do
+        if not m.min_players or n >= m.min_players then
+            available[#available + 1] = m
+        end
+    end
+    if #available == 0 then return nil end
+    return available[math.random(#available)]
 end
 
 -- ─────────────────────────────────────────────
@@ -36,6 +48,16 @@ end
 -- ─────────────────────────────────────────────
 local currentMode    = nil   -- active only during ROUND_ACTIVE
 local pendingMode    = nil   -- chosen during prep, promoted to currentMode at TTTBeginRound
+
+-- Used by roundendmusicserver.lua to pick special-round music.
+-- sc0b_GetLastRoundModeID is preferred: it's captured before cleanup so hook order doesn't matter.
+function sc0b_GetCurrentModeID()
+    return currentMode and currentMode.id or nil
+end
+local lastRoundModeID = nil  -- set at round-end, cleared at next prep
+function sc0b_GetLastRoundModeID()
+    return lastRoundModeID
+end
 local forcedMode     = nil   -- set by admin command; consumed on next TTTBeginRound
 local currentPct     = nil   -- lazily initialized; tracks rolling chance; persisted across map changes
 local roundCount     = 0     -- total rounds started this session
@@ -260,6 +282,16 @@ local KNIFE_SKINS = {
     "csgo_m9_ultraviolet",
 }
 
+-- Crowbar Brawl: assign everyone ROLE_FFA (team "ffas") for a true free-for-all
+hook.Add("TTT2ModifyFinalRoles", "sc0b_CrowbarFFARoles", function(finalRoles)
+    if not pendingMode or pendingMode.id ~= "crowbar_ffa" then return end
+    for ply in pairs(finalRoles) do
+        if IsValid(ply) then
+            finalRoles[ply] = ROLE_FFA
+        end
+    end
+end)
+
 -- Knife Round: same 50/50 Red/Blue split as Chaos
 hook.Add("TTT2ModifyFinalRoles", "sc0b_KnifeRoundRoleFilter", function(finalRoles)
     if not pendingMode or pendingMode.id ~= "knife_round" then return end
@@ -355,23 +387,25 @@ hook.Add("LoadedFallbackShops", "sc0b_SeedChaosTeamShops", function()
     seedShop("blueteam", CHAOS_BLUE_SHOP)
 end)
 
+local WEAPON_ONLY_MODES = { knife_round = true, crowbar_ffa = true, plant_and_defuse = true }
+
 -- Allow everyone to buy from shop during Chaos mode, for free
 hook.Add("TTT2CanOrderEquipment", "sc0b_ChaosShop", function(ply, equipmentName, isItem, credits)
     if currentMode and currentMode.id == "chaos" then
         return true, true  -- allow purchase + ignore credit cost
     end
-    -- Block all purchases during Knife Round (knives only)
-    if currentMode and currentMode.id == "knife_round" then
+    -- Block all purchases during weapon-only rounds
+    if currentMode and WEAPON_ONLY_MODES[currentMode.id] then
         return false
     end
 end)
 
--- Block PS2 perma-weapons from spawning during Knife Round.
+-- Block PS2 perma-weapons in weapon-only rounds (knife_round, crowbar_ffa).
 -- PS2's sh_base_weapon.lua checks this hook before calling ply:Give(); returning
 -- false is the intended suppression point, preventing the OnRoundSet timer from
 -- re-arming players after our TTTBeginRound StripAll.
-hook.Add("PS2_WeaponShouldSpawn", "sc0b_KnifeRoundBlockPS2", function(ply)
-    if currentMode and currentMode.id == "knife_round" then
+hook.Add("PS2_WeaponShouldSpawn", "sc0b_WeaponOnlyRoundBlockPS2", function(ply)
+    if currentMode and WEAPON_ONLY_MODES[currentMode.id] then
         return false
     end
 end)
@@ -383,6 +417,29 @@ hook.Add("TTT2CanOrderEquipment", "sc0b_ExplodingPropsShopBlock", function(ply, 
         if equipmentName == "item_ttt_noexplosiondmg" then
             return false
         end
+    end
+end)
+
+-- Plant and Defuse: 1 planter per 5 players (floor), rest defusers
+hook.Add("TTT2ModifyFinalRoles", "sc0b_PlantAndDefuseRoles", function(finalRoles)
+    if not pendingMode or pendingMode.id ~= "plant_and_defuse" then return end
+
+    local allPlayers = {}
+    for ply in pairs(finalRoles) do
+        if IsValid(ply) then allPlayers[#allPlayers + 1] = ply end
+    end
+
+    local total       = #allPlayers
+    local planterCount = math.max(1, math.floor(total / 5))
+
+    -- Fisher-Yates shuffle
+    for i = total, 2, -1 do
+        local j = math.random(i)
+        allPlayers[i], allPlayers[j] = allPlayers[j], allPlayers[i]
+    end
+
+    for i, ply in ipairs(allPlayers) do
+        finalRoles[ply] = (i <= planterCount) and ROLE_PLANTER or ROLE_DEFUSER
     end
 end)
 
@@ -431,6 +488,139 @@ hook.Add("TTTCheckForWin", "sc0b_OopsAllZombiesWin", function()
         return lastTeam
     end
     return TEAM_NONE                          -- everyone died at once
+end)
+
+-- Crowbar Brawl: last FFA player standing wins.
+-- Overriding TTTCheckForWin entirely prevents the default team-based check
+-- (which would instantly end the round since there are no traitors).
+hook.Add("TTTCheckForWin", "sc0b_CrowbarFFAWin", function()
+    if not currentMode or currentMode.id ~= "crowbar_ffa" then return end
+
+    local alive = 0
+    local lastTeam, lastSteamID
+    for _, ply in ipairs(player.GetAll()) do
+        if IsValid(ply) and ply:IsTerror() then
+            alive       = alive + 1
+            lastTeam    = ply:GetTeam()
+            lastSteamID = ply:SteamID64()
+        end
+    end
+
+    if alive > 1 then return WIN_NONE end
+    if alive == 1 then
+        SC0B_CBR_WinnerSteamID = lastSteamID
+        SC0B_OAZ_WinnerSteamID = lastSteamID  -- sv_log_rounds picks this up for winner_steamid
+        return lastTeam
+    end
+    return TEAM_NONE
+end)
+
+-- TDM balance revive: if Red vs Blue teams are uneven by 1, the first player
+-- to die on the smaller team is revived, equalising total lives.
+local TDM_MODES = { knife_round = true, chaos = true }
+
+hook.Add("PlayerDeath", "sc0b_TDMBalanceRevive", function(victim, inflictor, attacker)
+    if not currentMode or not TDM_MODES[currentMode.id] then return end
+    if not currentMode._balanceReviveTeam then return end
+    if not IsValid(victim) or victim:GetTeam() ~= currentMode._balanceReviveTeam then return end
+
+    -- Consume the single revive
+    currentMode._balanceReviveTeam = nil
+
+    local skin = (currentMode.id == "knife_round") and victim.kr_skin or nil
+
+    victim:Revive(3, function(p)
+        if not IsValid(p) then return end
+        if skin then
+            p:StripAll()
+            p:Give(skin)
+            if IsValid(p:GetWeapon(skin)) then p:SelectWeapon(skin) end
+        end
+    end, nil, false, REVIVAL_BLOCK_ALL)
+
+    for _, ply in ipairs(player.GetAll()) do
+        if IsValid(ply) then
+            ply:PrintMessage(HUD_PRINTTALK,
+                "[TDM] Teams were uneven - " .. victim:Nick() .. " has been granted a revive!")
+        end
+    end
+end)
+
+-- OAZ kill refund: +1 bullet to zombie pistol clip on each kill
+hook.Add("PlayerDeath", "sc0b_OAZKillRefund", function(victim, inflictor, attacker)
+    if not currentMode or currentMode.id ~= "oops_all_zombies" then return end
+    if not IsValid(attacker) or not attacker:IsPlayer() or attacker == victim then return end
+    local wep = attacker:GetWeapon("weapon_ttth_zombpistol")
+    if not IsValid(wep) then return end
+    local newClip = math.min(wep:Clip1() + 1, wep.Primary.ClipMax or 35)
+    wep:SetClip1(newClip)
+    attacker:PrintMessage(HUD_PRINTTALK, "[OAZ] Kill refund: +1 bullet (" .. newClip .. "/" .. (wep.Primary.ClipMax or 35) .. ")")
+end)
+
+-- ─────────────────────────────────────────────
+-- Plant and Defuse: ttt_c4_pd explosion means planters win (ttt_c4_pd:Explode fires the hook)
+hook.Add("TTTC4Explode", "sc0b_PlantAndDefuseNoExplode", function(bomb)
+    if not currentMode or currentMode.id ~= "plant_and_defuse" then return end
+    if bomb:GetClass() ~= "ttt_c4_pd" then return end
+    if SERVER and currentMode._defusePhaseStarted then
+        currentMode._planterWin = true
+    end
+    return false
+end)
+
+-- Prevent planters from manually arming during the plant phase (server arms at T+30)
+hook.Add("TTTC4Arm", "sc0b_PlantDefuseBlockManualArm", function(bomb, ply)
+    if not currentMode or currentMode.id ~= "plant_and_defuse" then return end
+    if not currentMode._defusePhaseStarted then
+        return false, "c4_armed" -- suppress arm; bomb arms automatically
+    end
+end)
+
+-- Plant and Defuse: custom win condition
+hook.Add("TTTCheckForWin", "sc0b_PlantAndDefuseWin", function()
+    if not currentMode or currentMode.id ~= "plant_and_defuse" then return end
+
+    -- Explicit win flags (set by TTTC4Explode or 0-bomb plant phase)
+    if currentMode._planterWin then return TEAM_PLANTER end
+    if currentMode._defuserWin then return TEAM_DEFUSER end
+
+    -- Plant phase still active - hold the round open
+    if not currentMode._defusePhaseStarted then return WIN_NONE end
+
+    -- If all defusers are dead, planters win (nobody left to defuse)
+    local defuserAlive = false
+    for _, ply in ipairs(player.GetAll()) do
+        if IsValid(ply) and ply:Alive() and not ply:IsSpec()
+            and TEAM_DEFUSER and ply:GetTeam() == TEAM_DEFUSER
+        then
+            defuserAlive = true
+            break
+        end
+    end
+    if not defuserAlive then
+        currentMode._planterWin = true
+        return TEAM_PLANTER
+    end
+
+    -- Count currently armed ttt_c4_pd bombs
+    local armedCount = 0
+    for _, ent in ipairs(ents.FindByClass("ttt_c4_pd")) do
+        if IsValid(ent) and ent:GetArmed() then
+            local etime = ent:GetExplodeTime()
+            if etime ~= 0 and etime < CurTime() then
+                currentMode._planterWin = true
+                return TEAM_PLANTER
+            end
+            armedCount = armedCount + 1
+        end
+    end
+
+    -- All bombs defused
+    if armedCount == 0 and currentMode._bombsArmed > 0 then
+        return TEAM_DEFUSER
+    end
+
+    return WIN_NONE
 end)
 
 -- ─────────────────────────────────────────────
@@ -493,7 +683,7 @@ local PREP_HINTS_BY_MODE = {
         "Someone left the terrorists in the dryer too long.",
         "Fun-sized round. Unfun-sized consequences.",
         "Big problems. Little terrorists.",
-        "Duck. No, literally — you are the duck now.",
+        "Duck. No, literally - you are the duck now.",
         "Watch your step.",
     },
     speed = {
@@ -566,6 +756,20 @@ local PREP_HINTS_BY_MODE = {
         "The quartermaster made a very specific purchase.",
         "No ammo needed where you're going.",
     },
+    crowbar_ffa = {
+        "The armory is closed. The maintenance closet is open.",
+        "Every person for themselves! And the tool is a crowbar.",
+        "Gordon Freeman would feel right at home.",
+        "No teams. No guns. Just leverage.",
+        "The last one swinging wins.",
+    },
+    plant_and_defuse = {
+        "The C4 has been checked out. Please return it promptly.",
+        "Some players have been issued packages. Others will receive nothing.",
+        "The armory has a very specific request this round.",
+        "Plant. Run. Hope they can't find it.",
+        "Somewhere on this map, a countdown has begun.",
+    },
 }
 
 local PREP_HINTS = {
@@ -613,9 +817,15 @@ local PREP_HINTS = {
 }
 
 hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
-    currentMode = nil
-    pendingMode = nil
+    currentMode     = nil
+    pendingMode     = nil
+    lastRoundModeID = nil
     roundCount  = roundCount + 1
+
+    -- Safety: clear any leftover plant_and_defuse blind from a previous round
+    net.Start("sc0b_PlantDefuseBlind")
+        net.WriteBool(false)
+    net.Broadcast()
 
     -- Safety: restore global effects in case last round's cleanup was missed
     if GetConVar("sv_gravity"):GetInt() ~= 285 then
@@ -637,6 +847,13 @@ hook.Add("TTTPrepareRound", "sc0b_SpecialRoundPrep", function()
     else
         if base > 0 and math.random(100) <= currentPct then
             pendingMode = PickRandomMode()
+            if not pendingMode then
+                -- No eligible modes (e.g. player count too low for all min_players modes)
+                currentPct = math.min(currentPct + base, 100)
+                lastWasSpecial = false
+                SavePct()
+                return
+            end
             notifyAdmins("[SPECIAL ROUNDS] Rolled at " .. currentPct .. "%: " .. pendingMode.name .. " - resetting to " .. base .. "%")
             currentPct     = base
             lastWasSpecial = true
@@ -687,6 +904,12 @@ end
 -- Round start: apply mode and announce
 -- ─────────────────────────────────────────────
 hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
+    -- Guard: restore karma if a previous FFA round crashed without cleanup
+    local karmaCV = GetConVar("ttt_karma")
+    if karmaCV and karmaCV:GetInt() == 0 then
+        RunConsoleCommand("ttt_karma", "1")
+    end
+
     -- Promote pending → current now that the round is actually active
     currentMode = pendingMode
     pendingMode = nil
@@ -719,6 +942,21 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
                 ply:GiveEquipmentWeapon("weapon_ttth_zombpistol")
             end
         end
+        -- Passive ammo regen: +1 bullet to clip every 90 seconds
+        timer.Create("sc0b_OAZAmmoRegen", 90, 0, function()
+            if not currentMode or currentMode.id ~= "oops_all_zombies" then
+                timer.Remove("sc0b_OAZAmmoRegen")
+                return
+            end
+            for _, ply in ipairs(player.GetAll()) do
+                if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+                local wep = ply:GetWeapon("weapon_ttth_zombpistol")
+                if not IsValid(wep) then continue end
+                local newClip = math.min(wep:Clip1() + 1, wep.Primary.ClipMax or 35)
+                wep:SetClip1(newClip)
+                ply:PrintMessage(HUD_PRINTTALK, "[OAZ] Ammo regen: +" .. 1 .. " bullet (" .. newClip .. "/" .. (wep.Primary.ClipMax or 35) .. ")")
+            end
+        end)
     elseif currentMode.id == "knife_round" then
         -- Remove every world weapon before giving knives so players can't grab a gun
         for _, ent in ipairs(ents.GetAll()) do
@@ -758,6 +996,183 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
                 end
             end
         end)
+    elseif currentMode.id == "crowbar_ffa" then
+        currentMode._origKarma = GetConVar("ttt_karma"):GetInt()
+        RunConsoleCommand("ttt_karma", "0")
+        -- Remove world weapons so no guns can be picked up
+        for _, ent in ipairs(ents.GetAll()) do
+            if IsValid(ent) and ent:IsWeapon() then
+                local owner = ent:GetOwner()
+                if not IsValid(owner) or not owner:IsPlayer() then
+                    ent:Remove()
+                end
+            end
+        end
+        for _, ply in ipairs(player.GetAll()) do
+            if IsValid(ply) and ply:Alive() and not ply:IsSpec() then
+                ply:StripAll()
+                ply:Give("weapon_zm_improvised")
+                ply:SelectWeapon("weapon_zm_improvised")
+                ply:GiveEquipmentItem(EQUIP_RADAR)
+            end
+        end
+        -- Deferred strip: PS2 re-arms via OnRoundSet timers
+        timer.Simple(0.5, function()
+            if not currentMode or currentMode.id ~= "crowbar_ffa" then return end
+            for _, ply in ipairs(player.GetAll()) do
+                if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+                for _, wep in ipairs(ply:GetWeapons()) do
+                    if IsValid(wep) and wep:GetClass() ~= "weapon_zm_improvised" then
+                        ply:StripWeapon(wep:GetClass())
+                    end
+                end
+                if IsValid(ply:GetWeapon("weapon_zm_improvised")) then
+                    ply:SelectWeapon("weapon_zm_improvised")
+                end
+            end
+        end)
+    elseif currentMode.id == "plant_and_defuse" then
+        currentMode._origKarma   = GetConVar("ttt_karma"):GetInt()
+        currentMode._planterWin  = false
+        currentMode._defuserWin  = false
+        currentMode._defusePhaseStarted = false
+        currentMode._bombsArmed  = 0
+
+        -- Read TTT2's actual phase end time so the fuse matches the real round clock
+        currentMode._roundEndTime = gameloop.GetPhaseEnd()
+
+        RunConsoleCommand("ttt_karma", "0")
+
+        -- Remove world weapons so no guns can be grabbed
+        for _, ent in ipairs(ents.GetAll()) do
+            if IsValid(ent) and ent:IsWeapon() then
+                local owner = ent:GetOwner()
+                if not IsValid(owner) or not owner:IsPlayer() then
+                    ent:Remove()
+                end
+            end
+        end
+
+        for _, ply in ipairs(player.GetAll()) do
+            if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+
+            if ply:GetTeam() == TEAM_PLANTER then
+                ply:StripAll()
+                ply:Give("weapon_ttt_c4")
+            else
+                -- Defuser: freeze and blind for the plant phase
+                ply:StripAll()
+                ply:Freeze(true)
+            end
+        end
+
+        -- Blind defusers only
+        for _, ply in ipairs(player.GetAll()) do
+            if IsValid(ply) and ply:Alive() and not ply:IsSpec() and ply:GetTeam() == TEAM_DEFUSER then
+                net.Start("sc0b_PlantDefuseBlind")
+                    net.WriteBool(true)
+                net.Send(ply)
+            end
+        end
+
+        -- Deferred strip: block PS2 perma-weapons re-arming
+        timer.Simple(0.5, function()
+            if not currentMode or currentMode.id ~= "plant_and_defuse" then return end
+            for _, ply in ipairs(player.GetAll()) do
+                if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+                if ply:GetTeam() == TEAM_PLANTER then
+                    for _, wep in ipairs(ply:GetWeapons()) do
+                        if IsValid(wep) and wep:GetClass() ~= "weapon_ttt_c4" then
+                            ply:StripWeapon(wep:GetClass())
+                        end
+                    end
+                else
+                    ply:StripAll()
+                end
+            end
+        end)
+
+        -- Plant phase ends after 30 seconds: arm all placed C4s, release defusers
+        timer.Create("sc0b_PlantPhaseEnd", 30, 1, function()
+            if not currentMode or currentMode.id ~= "plant_and_defuse" then return end
+
+            -- Strip C4 from planters and give them a pistol for the fight
+            for _, ply in ipairs(player.GetAll()) do
+                if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+                if ply:GetTeam() == TEAM_PLANTER then
+                    ply:StripWeapon("weapon_ttt_c4")
+                    ply:Give("weapon_ttt_pistol")
+                    ply:SelectWeapon("weapon_ttt_pistol")
+                end
+            end
+
+            -- Swap each placed ttt_c4 for ttt_c4_pd and arm it with remaining round time.
+            -- ttt_c4_pd:Arm always makes all wires safe and has no beep or explosion effects.
+            local armTime    = math.max(10, math.floor(currentMode._roundEndTime - CurTime() - 1))
+            local bombsArmed = 0
+            local c4List     = ents.FindByClass("ttt_c4")
+            print("[sc0b PlantDefuse] T+30 swap: found " .. #c4List .. " ttt_c4 entities, armTime=" .. armTime)
+
+            for _, ent in ipairs(c4List) do
+                if not IsValid(ent) then continue end
+
+                local pos      = ent:GetPos()
+                local ang      = ent:GetAngles()
+                -- GetOriginator is set at deploy time (ThrowEntity/StickEntity);
+                -- GetThrower is only set during Arm, so it's nil on an unarmed entity.
+                local originator = ent:GetOriginator()
+                ent:Remove()
+
+                local pd = ents.Create("ttt_c4_pd")
+                if not IsValid(pd) then
+                    print("[sc0b PlantDefuse] WARNING: ents.Create(ttt_c4_pd) failed")
+                    continue
+                end
+
+                pd:SetPos(pos)
+                pd:SetAngles(ang)
+                pd:Spawn()
+                pd:Activate()
+
+                -- Pass originator only if valid player; Arm handles nil gracefully
+                local owner = (IsValid(originator) and originator:IsPlayer()) and originator or nil
+                pd:Arm(owner, armTime)
+                bombsArmed = bombsArmed + 1
+            end
+
+            print("[sc0b PlantDefuse] T+30 swap: " .. bombsArmed .. " ttt_c4_pd armed")
+
+            currentMode._bombsArmed          = bombsArmed
+            currentMode._defusePhaseStarted  = true
+
+            -- Unfreeze and arm defusers
+            for _, ply in ipairs(player.GetAll()) do
+                if not IsValid(ply) or not ply:Alive() or ply:IsSpec() then continue end
+                if ply:GetTeam() == TEAM_DEFUSER then
+                    ply:Freeze(false)
+                    ply:Give("weapon_ttt_pistol")
+                    ply:SelectWeapon("weapon_ttt_pistol")
+                end
+            end
+
+            -- Remove blind overlay
+            net.Start("sc0b_PlantDefuseBlind")
+                net.WriteBool(false)
+            net.Broadcast()
+
+            -- Announce
+            local msg = bombsArmed > 0
+                and ("[GREATSEA] GO! Defuse " .. bombsArmed .. " bomb" .. (bombsArmed == 1 and "" or "s") .. "!")
+                or  "[GREATSEA] No bombs were planted - defusers win!"
+
+            for _, ply in ipairs(player.GetAll()) do
+                ply:PrintMessage(HUD_PRINTTALK, msg)
+            end
+
+            if bombsArmed == 0 then
+                currentMode._defuserWin = true
+            end
+        end)
     end
 
     -- Apply per-player effects
@@ -767,6 +1182,24 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
         end
     end
 
+
+    -- TDM balance revive: mark the smaller team if counts are uneven by 1
+    if TDM_MODES[currentMode.id] then
+        local redCount, blueCount = 0, 0
+        for _, ply in ipairs(player.GetAll()) do
+            if IsValid(ply) and ply:Alive() and not ply:IsSpec() then
+                local t = ply:GetTeam()
+                if t == TEAM_REDTEAM then
+                    redCount = redCount + 1
+                elseif t == TEAM_BLUETEAM then
+                    blueCount = blueCount + 1
+                end
+            end
+        end
+        if redCount ~= blueCount then
+            currentMode._balanceReviveTeam = (redCount < blueCount) and TEAM_REDTEAM or TEAM_BLUETEAM
+        end
+    end
 
     -- Chat announcement
     for _, ply in ipairs(player.GetAll()) do
@@ -803,6 +1236,9 @@ end)
 -- Round end - restore all players
 -- ─────────────────────────────────────────────
 hook.Add("TTTEndRound", "sc0b_SpecialRoundEnd", function()
+    -- Capture before clearing so music server can read it regardless of hook order
+    lastRoundModeID = currentMode and currentMode.id or nil
+
     if currentMode then
         -- Restore global effects
         if currentMode.id == "low_grav" then
@@ -810,11 +1246,33 @@ hook.Add("TTTEndRound", "sc0b_SpecialRoundEnd", function()
         elseif currentMode.id == "double_time" or currentMode.id == "slow_mo" then
             game.SetTimeScale(1)
         elseif currentMode.id == "oops_all_zombies" then
+            timer.Remove("sc0b_OAZAmmoRegen")
             RunConsoleCommand("ttt_karma", tostring(currentMode._origKarma or 1))
+        elseif currentMode.id == "crowbar_ffa" then
+            RunConsoleCommand("ttt_karma", tostring(currentMode._origKarma or 1))
+        elseif currentMode.id == "plant_and_defuse" then
+            timer.Remove("sc0b_PlantPhaseEnd")
+            RunConsoleCommand("ttt_karma", tostring(currentMode._origKarma or 1))
+            -- Unfreeze any still-frozen defusers
+            for _, ply in ipairs(player.GetAll()) do
+                if IsValid(ply) then ply:Freeze(false) end
+            end
+            -- Clear client blindfold
+            net.Start("sc0b_PlantDefuseBlind")
+                net.WriteBool(false)
+            net.Broadcast()
+            -- Remove any remaining bombs (no cleanup explosion)
+            for _, ent in ipairs(ents.FindByClass("ttt_c4")) do
+                if IsValid(ent) then ent:Remove() end
+            end
+            for _, ent in ipairs(ents.FindByClass("ttt_c4_pd")) do
+                if IsValid(ent) then ent:Remove() end
+            end
         end
 
     end
 
+    if currentMode then currentMode._balanceReviveTeam = nil end
     currentMode = nil
     pendingMode = nil
 
@@ -837,10 +1295,10 @@ hook.Add("OnEntityCreated", "sc0b_ExplodingPropsInit", function(ent)
     end)
 end)
 
--- Knife Round: destroy any weapon entity that lands in the world (not held by a player).
+-- Weapon-only rounds: destroy any weapon entity that lands in the world.
 -- Deferred one tick so the entity's owner is set before we check it.
-hook.Add("OnEntityCreated", "sc0b_KnifeRoundRemoveWorldWeapons", function(ent)
-    if not currentMode or currentMode.id ~= "knife_round" then return end
+hook.Add("OnEntityCreated", "sc0b_WeaponOnlyRoundRemoveWorldWeapons", function(ent)
+    if not currentMode or not WEAPON_ONLY_MODES[currentMode.id] then return end
     if not IsValid(ent) or not ent:IsWeapon() then return end
     timer.Simple(0, function()
         if not IsValid(ent) then return end
