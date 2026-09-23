@@ -15,7 +15,7 @@ timer.Simple(0, function()
         elseif istable(filter) then
             local clean = {}
             for _, v in ipairs(filter) do
-                if IsValid(v) then clean[#clean + 1] = v end
+                if isentity(v) and IsValid(v) then clean[#clean + 1] = v end
             end
             filter = #clean > 0 and clean or nil
         end

@@ -15,9 +15,9 @@ local function GS_GetPlayerData(steamid64)
         WHERE PA.steamid = ']] .. steamid64 .. [[' AND PA.equipped = 1 LIMIT 1;
     ]])
 
-    local title, stat_type = "", "none"
+    local title, stat_type, role_type, team_type = "", "none", "none", "none"
     if titleRow then
-        title = titleRow.name or ""
+        title     = titleRow.name      or ""
         stat_type = titleRow.stat_type or "none"
         role_type = titleRow.role_type or "none"
         team_type = titleRow.team_type or "none"

@@ -69,17 +69,18 @@ function ENT:Explode(tr)
 end
 
 if SERVER then
-    -- BaseClass.Disarm calls events.Trigger(EVENT_C4DISARM, GetOriginator(), ply, true).
-    -- If GetOriginator() is nil, c4disarm.lua crashes on :SteamID64().
-    -- Guard it and fall back to direct state clear.
+    -- Bypass BaseClass.Disarm: the base class expects (ply, wireNum) and calls Explode
+    -- when wireNum is absent/nil (treats it as a wrong wire). We trigger the disarm
+    -- event manually for round statistics and handle state directly.
+    -- Guard originator: c4disarm.lua crashes on :SteamID64() if originator is nil.
     function ENT:Disarm(ply)
-        if IsValid(self:GetOriginator()) then
-            BaseClass.Disarm(self, ply)
-        else
-            self:SetExplodeTime(0)
-            self:SetArmed(false)
-            self:RemoveMarkerVision("c4_owner")
+        local originator = self:GetOriginator()
+        if IsValid(originator) then
+            events.Trigger(EVENT_C4DISARM, originator, ply, true)
         end
+        self:SetExplodeTime(0)
+        self:SetArmed(false)
+        self:RemoveMarkerVision("c4_owner")
     end
 
     -- Always make every wire safe regardless of arm time.

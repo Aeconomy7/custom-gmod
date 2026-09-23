@@ -5,6 +5,8 @@ CreateConVar("special_round_pct", "5", FCVAR_ARCHIVE + FCVAR_NOTIFY,
 
 util.AddNetworkString("sc0b_SpecialRoundType")
 util.AddNetworkString("sc0b_PlantDefuseBlind")
+util.AddNetworkString("sc0b_PlantDefuseBombExplode")
+util.AddNetworkString("sc0b_PlantDefuseAllDefused")
 util.AddNetworkString("TTT_C4PDDisarmResult")
 
 -- ─────────────────────────────────────────────
@@ -564,6 +566,29 @@ hook.Add("TTTC4Explode", "sc0b_PlantAndDefuseNoExplode", function(bomb)
     if bomb:GetClass() ~= "ttt_c4_pd" then return end
     if SERVER and currentMode._defusePhaseStarted then
         currentMode._planterWin = true
+
+        local pos = bomb:GetPos()
+
+        -- Explosion visual + screen shake broadcast to all clients
+        local ed = EffectData()
+        ed:SetOrigin(pos)
+        ed:SetScale(3)
+        util.Effect("Explosion", ed)
+        util.ScreenShake(pos, 15, 8, 4, 3000)
+
+        -- Tell clients where the bomb was for the post-explosion marker
+        net.Start("sc0b_PlantDefuseBombExplode")
+            net.WriteVector(pos)
+        net.Broadcast()
+
+        -- Kill all still-alive players next tick (deferred so TTTC4Explode return false resolves first)
+        timer.Simple(0, function()
+            for _, p in ipairs(player.GetAll()) do
+                if IsValid(p) and p:Alive() and not p:IsSpec() then
+                    p:Kill()
+                end
+            end
+        end)
     end
     return false
 end)
@@ -617,6 +642,23 @@ hook.Add("TTTCheckForWin", "sc0b_PlantAndDefuseWin", function()
 
     -- All bombs defused
     if armedCount == 0 and currentMode._bombsArmed > 0 then
+        if not currentMode._defuseAllBroadcast then
+            currentMode._defuseAllBroadcast = true
+
+            local positions = {}
+            for _, ent in ipairs(ents.FindByClass("ttt_c4_pd")) do
+                if IsValid(ent) then
+                    table.insert(positions, ent:GetPos())
+                end
+            end
+
+            net.Start("sc0b_PlantDefuseAllDefused")
+                net.WriteUInt(#positions, 8)
+                for _, pos in ipairs(positions) do
+                    net.WriteVector(pos)
+                end
+            net.Broadcast()
+        end
         return TEAM_DEFUSER
     end
 
@@ -892,13 +934,15 @@ local EXPLOSIVE_PROP_CLASSES = {
 local function MakePropExplosive(ent)
     if not IsValid(ent) then return end
     if not EXPLOSIVE_PROP_CLASSES[ent:GetClass()] then return end
-    ent:SetHealth(100)
-    ent:SetKeyValue("ExplodeDamage", "200")
-    ent:SetKeyValue("ExplodeRadius", "250")
+    ent:SetHealth(40)
+    ent:SetKeyValue("ExplodeDamage", "350")
+    ent:SetKeyValue("ExplodeRadius", "400")
     ent:SetKeyValue("physdamagescale", "1.0")
-    -- Ensure the prop can be damaged by bullets/explosions (not just physics)
     ent:SetKeyValue("nodamageforces", "0")
 end
+
+-- Per-entity cooldown table so custom-entity blasts don't spam
+local _epBlastCooldown = {}
 
 -- ─────────────────────────────────────────────
 -- Round start: apply mode and announce
@@ -1037,6 +1081,7 @@ hook.Add("TTTBeginRound", "sc0b_SpecialRoundBegin", function()
         currentMode._defuserWin  = false
         currentMode._defusePhaseStarted = false
         currentMode._bombsArmed  = 0
+        currentMode._defuseAllBroadcast = false
 
         -- Read TTT2's actual phase end time so the fuse matches the real round clock
         currentMode._roundEndTime = gameloop.GetPhaseEnd()
@@ -1275,6 +1320,7 @@ hook.Add("TTTEndRound", "sc0b_SpecialRoundEnd", function()
     if currentMode then currentMode._balanceReviveTeam = nil end
     currentMode = nil
     pendingMode = nil
+    _epBlastCooldown = {}
 
     for _, ply in ipairs(player.GetAll()) do
         ply.kr_skin = nil
@@ -1293,6 +1339,38 @@ hook.Add("OnEntityCreated", "sc0b_ExplodingPropsInit", function(ent)
     timer.Simple(0, function()
         MakePropExplosive(ent)
     end)
+end)
+
+-- Exploding Props: catch-all for custom entities not in EXPLOSIVE_PROP_CLASSES.
+-- Any entity with a valid physics object explodes when first hit, regardless of class.
+hook.Add("EntityTakeDamage", "sc0b_ExplodingPropsBlast", function(ent, dmginfo)
+    if not currentMode or currentMode.id ~= "exploding_props" then return end
+    if not IsValid(ent) or ent:IsPlayer() then return end
+    -- prop_physics variants are armed at round start via MakePropExplosive - skip
+    if EXPLOSIVE_PROP_CLASSES[ent:GetClass()] then return end
+    -- Ignore blast damage to prevent chain recursion
+    if bit.band(dmginfo:GetDamageType(), DMG_BLAST) ~= 0 then return end
+    -- Only physical world objects (excludes triggers, skybox brushes, etc.)
+    local phys = ent:GetPhysicsObject()
+    if not IsValid(phys) then return end
+    -- Skip weapons and vehicles
+    if ent:IsWeapon() or ent:IsVehicle() then return end
+
+    local idx = ent:EntIndex()
+    local now = CurTime()
+    if _epBlastCooldown[idx] and now - _epBlastCooldown[idx] < 0.5 then return end
+    _epBlastCooldown[idx] = now
+
+    local pos = ent:GetPos()
+    local attacker = dmginfo:GetAttacker()
+    if not IsValid(attacker) then attacker = game.GetWorld() end
+
+    local ed = EffectData()
+    ed:SetOrigin(pos)
+    ed:SetScale(3)
+    util.Effect("Explosion", ed)
+    util.ScreenShake(pos, 8, 5, 1, 600)
+    util.BlastDamage(attacker, attacker, pos, 400, 350)
 end)
 
 -- Weapon-only rounds: destroy any weapon entity that lands in the world.

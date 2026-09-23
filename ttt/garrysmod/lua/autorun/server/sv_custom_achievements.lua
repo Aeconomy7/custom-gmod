@@ -119,30 +119,20 @@ if SERVER then
     -- steamid    : player's SteamID64 (string)
     -- round_type : special round id string, e.g. "tiny", "low_grav"
     ----------------------------------------------------------------------
-    -- FFA round types use winner_steamid instead of team-based win matching
-    local FFA_ROUND_TYPES = { oops_all_zombies = true }
-
     local function GetSpecialRoundWinCount(steamid, round_type)
-        if FFA_ROUND_TYPES[round_type] then
-            local q = sql.QueryRow([[
-                SELECT COUNT(*) AS wins
-                FROM rounds r
-                WHERE r.test_round = 0
-                AND r.round_type = ']] .. round_type .. [['
-                AND r.winner_steamid = ']] .. steamid .. [['
-            ]])
-            return q and tonumber(q.wins) or 0
-        end
-
         local q = sql.QueryRow([[
             SELECT COUNT(*) AS wins
             FROM rounds r
             JOIN round_players rp ON rp.round_id = r.round_id
             WHERE r.test_round = 0
+            AND r.end_time IS NOT NULL
             AND r.round_type = ']] .. round_type .. [['
-            AND r.winning_team = rp.team
-            AND rp.team != 'nones'
             AND rp.steamid = ']] .. steamid .. [['
+            AND rp.team != 'nones'
+            AND (
+                (r.winner_steamid IS NOT NULL AND r.winner_steamid != '' AND r.winner_steamid = rp.steamid)
+                OR ((r.winner_steamid IS NULL OR r.winner_steamid = '') AND r.winning_team = rp.team)
+            )
         ]])
         return q and tonumber(q.wins) or 0
     end
@@ -155,6 +145,15 @@ if SERVER then
     -- team_type  : optional team filter (string or nil/"none")
     -- map_name   : optional map filter (string or nil/"none")
     ----------------------------------------------------------------------
+    -- Win condition: if winner_steamid is set on the round, only that player wins.
+    -- Otherwise fall back to team-based match.
+    local WIN_COND = [[
+        (
+            (r.winner_steamid IS NOT NULL AND r.winner_steamid != '' AND r.winner_steamid = rp.steamid)
+            OR ((r.winner_steamid IS NULL OR r.winner_steamid = '') AND r.winning_team = rp.team)
+        )
+    ]]
+
     local function GetRoundWinCount(steamid, role_type, team_type, map_name)
         local base_where = [[
             FROM rounds r
@@ -172,13 +171,13 @@ if SERVER then
         -- optional role filter
         if role_type and role_type ~= "none" then
             table.insert(extra_conditions, "rp.role = '" .. role_type .. "'")
-            table.insert(extra_conditions, "r.winning_team = rp.team")
+            table.insert(extra_conditions, WIN_COND)
         end
 
         -- optional team filter
         if team_type and team_type ~= "none" then
             table.insert(extra_conditions, "rp.team = '" .. team_type .. "'")
-            table.insert(extra_conditions, "r.winning_team = rp.team")
+            table.insert(extra_conditions, WIN_COND)
         end
 
         -- optional map filter
@@ -188,7 +187,7 @@ if SERVER then
 
         -- default win condition if no role/team filter
         if not (role_type and role_type ~= "none") and not (team_type and team_type ~= "none") then
-            table.insert(extra_conditions, "r.winning_team = rp.team")
+            table.insert(extra_conditions, WIN_COND)
         end
 
         local query = "SELECT COUNT(*) AS wins " .. base_where
@@ -196,7 +195,6 @@ if SERVER then
             query = query .. " AND " .. table.concat(extra_conditions, " AND ")
         end
 
-        -- print("[ACHIEVEMENTS] Query: " .. query)
         local q = sql.QueryRow(query)
         return q and tonumber(q.wins) or 0
     end
